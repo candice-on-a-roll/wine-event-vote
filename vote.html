@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Champagne Vote</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0c0a;
+    --surface: #1a1714;
+    --surface2: #242018;
+    --border: rgba(212,175,100,0.18);
+    --border-h: rgba(212,175,100,0.38);
+    --gold: #d4af64;
+    --gold-light: #e8cf94;
+    --gold-dim: rgba(212,175,100,0.1);
+    --cream: #f5efe0;
+    --muted: rgba(245,239,224,0.42);
+    --font-d: 'Cormorant Garamond', Georgia, serif;
+    --font-m: 'DM Mono', monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--cream); font-family: var(--font-d); min-height: 100vh; }
+
+  /* bubbles */
+  .bubbles { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 0; }
+  .bubble { position: absolute; bottom: -20px; border-radius: 50%; background: rgba(212,175,100,0.055); animation: rise linear infinite; }
+  @keyframes rise { 0%{transform:translateY(0) scale(1);opacity:.7} 100%{transform:translateY(-110vh) scale(.35);opacity:0} }
+
+  .shell { position: relative; z-index: 1; max-width: 480px; margin: 0 auto; padding: 0 1.25rem 6rem; }
+
+  /* header */
+  header { text-align: center; padding: 3.2rem 0 2rem; }
+  .eyebrow { font-family: var(--font-m); font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--gold); margin-bottom: 0.55rem; }
+  h1 { font-size: clamp(2.2rem, 8vw, 3rem); font-weight: 300; letter-spacing: 0.04em; line-height: 1.05; }
+  h1 em { font-style: italic; color: var(--gold-light); }
+  .session-name { font-family: var(--font-m); font-size: 11px; color: var(--muted); margin-top: 0.5rem; letter-spacing: 0.06em; }
+
+  /* status */
+  .status-bar { text-align: center; margin-bottom: 2.2rem; }
+  .pill { display: inline-flex; align-items: center; gap: 0.4rem; font-family: var(--font-m); font-size: 10px; letter-spacing: 0.1em; padding: 0.3rem 0.85rem; border-radius: 99px; border: 1px solid; }
+  .pill-open { color: #2ecc71; border-color: rgba(46,204,113,0.3); background: rgba(46,204,113,0.07); }
+  .pill-closed { color: var(--muted); border-color: var(--border); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .dot-on { background: #2ecc71; animation: blink 1.8s infinite; }
+  .dot-off { background: var(--muted); }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.35} }
+
+  /* wine cards */
+  .wines { display: flex; flex-direction: column; gap: 0.8rem; }
+  .wine-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 1.2rem 1.35rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+    transition: border-color 0.2s, background 0.2s; position: relative; overflow: hidden;
+  }
+  .wine-card:active { transform: scale(0.985); }
+  .wine-card.selected { border-color: var(--gold); background: var(--gold-dim); }
+  .wine-card.selected::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--gold); border-radius:10px 0 0 10px; }
+  .wc-left { position: relative; z-index: 1; }
+  .wc-num { font-family: var(--font-m); font-size: 10px; color: var(--gold); margin-bottom: 0.25rem; }
+  .wc-name { font-size: 1.15rem; font-weight: 300; }
+  .check { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--border); display: flex; align-items: center; justify-content: center; transition: all 0.2s; flex-shrink: 0; }
+  .wine-card.selected .check { background: var(--gold); border-color: var(--gold); }
+  .check svg { opacity: 0; transition: opacity 0.2s; }
+  .wine-card.selected .check svg { opacity: 1; }
+
+  /* submit */
+  .submit-wrap { position: fixed; bottom: 0; left: 0; right: 0; padding: 1rem 1.25rem 1.75rem; background: linear-gradient(transparent, var(--bg) 38%); z-index: 10; }
+  .btn-submit { width: 100%; padding: 1rem 1.5rem; font-family: var(--font-d); font-style: italic; font-size: 1.25rem; font-weight: 300; letter-spacing: 0.05em; background: var(--gold); color: #1a1400; border: none; border-radius: 10px; cursor: pointer; transition: background 0.2s, transform 0.1s; }
+  .btn-submit:hover { background: var(--gold-light); }
+  .btn-submit:active { transform: scale(0.98); }
+  .btn-submit:disabled { opacity: 0.28; cursor: default; }
+
+  /* screens */
+  .screen { display: none; text-align: center; padding: 4rem 1rem 2rem; }
+  .screen.show { display: block; }
+  .big-icon { font-size: 3.8rem; margin-bottom: 1.4rem; animation: pop .45s cubic-bezier(.4,0,.2,1); }
+  @keyframes pop { 0%{transform:scale(.4);opacity:0} 80%{transform:scale(1.12)} 100%{transform:scale(1);opacity:1} }
+  .screen-title { font-size: 2rem; font-weight: 300; margin-bottom: 0.4rem; }
+  .screen-sub { font-family: var(--font-m); font-size: 11px; color: var(--muted); letter-spacing: 0.08em; }
+
+  /* post-vote results */
+  .results-wrap { margin-top: 2.5rem; text-align: left; }
+  .sec { font-family: var(--font-m); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); margin-bottom: 0.9rem; display: flex; align-items: center; gap: 0.55rem; }
+  .sec::after { content:''; flex:1; height:1px; background:var(--border); }
+  .r-item { margin-bottom: 0.8rem; }
+  .r-meta { display: flex; justify-content: space-between; font-size: 0.95rem; margin-bottom: 0.3rem; }
+  .r-pct { font-family: var(--font-m); font-size: 11px; color: var(--gold); }
+  .bar-track { height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--gold), var(--gold-light)); transition: width .7s cubic-bezier(.4,0,.2,1); }
+
+  /* error */
+  .error-screen { text-align: center; padding: 4rem 1rem; }
+  .error-screen h2 { font-size: 1.6rem; font-weight: 300; color: var(--muted); margin-bottom: 0.6rem; }
+  .error-screen p { font-family: var(--font-m); font-size: 11px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="bubbles" id="bubbles"></div>
+
+<div class="shell">
+  <header>
+    <div class="eyebrow">Champagne Tasting</div>
+    <h1>Cast Your <em>Vote</em></h1>
+    <div class="session-name" id="session-name-label">Loading...</div>
+  </header>
+
+  <div class="status-bar">
+    <span id="status-pill" class="pill pill-closed"><span class="dot dot-off"></span>Loading</span>
+  </div>
+
+  <!-- Main voting -->
+  <div id="main-ui" style="display:none">
+    <div class="wines" id="wines-list"></div>
+  </div>
+
+  <!-- Closed -->
+  <div id="closed-screen" class="error-screen" style="display:none">
+    <h2>Voting hasn't started</h2>
+    <p>Please wait for the host to open voting</p>
+  </div>
+
+  <!-- No session -->
+  <div id="no-session-screen" class="error-screen" style="display:none">
+    <h2>No session found</h2>
+    <p>Please ask your host for the correct link</p>
+  </div>
+
+  <!-- Voted -->
+  <div id="voted-screen" class="screen">
+    <div class="big-icon">🥂</div>
+    <div class="screen-title">Thank you!</div>
+    <div class="screen-sub" style="margin-bottom:0.3rem">Your vote has been recorded</div>
+    <div class="results-wrap">
+      <div class="sec">Current standings</div>
+      <div id="post-results"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Submit -->
+<div class="submit-wrap" id="submit-wrap" style="display:none">
+  <button class="btn-submit" id="btn-submit" disabled onclick="submitVote()">Submit My Vote</button>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, onValue, runTransaction, get } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCkVzgQItYG3IEJIvOh65bE5JVf2TPY6Xg",
+  authDomain: "wine-event-vote.firebaseapp.com",
+  databaseURL: "https://wine-event-vote-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "wine-event-vote",
+  storageBucket: "wine-event-vote.firebasestorage.app",
+  messagingSenderId: "241534493631",
+  appId: "1:241534493631:web:7eca293ea5dace42f1f70a"
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const db = getDatabase(fbApp);
+
+const sessionId = new URLSearchParams(window.location.search).get('session');
+let session = { wines: [], votes: {}, name: '', votingOpen: false };
+let selected = null;
+let hasVoted = false;
+let votedChoice = null;
+
+if (!sessionId) {
+  document.getElementById('no-session-screen').style.display = 'block';
+  document.getElementById('session-name-label').textContent = '';
+} else {
+  const sRef = ref(db, `sessions/${sessionId}`);
+
+  // Check session exists first
+  const snap = await get(sRef);
+  if (!snap.val()) {
+    document.getElementById('no-session-screen').style.display = 'block';
+    document.getElementById('session-name-label').textContent = 'Session not found';
+  } else {
+    // Listen real-time
+    onValue(sRef, snap => {
+      const data = snap.val();
+      if (!data) return;
+      session = {
+        wines: data.wines || [],
+        votes: data.votes || {},
+        name: data.name || '',
+        votingOpen: data.votingOpen || false,
+      };
+      if (!hasVoted) render();
+      else renderPostResults(); // update live while user is on results screen
+    });
+  }
+}
+
+function render() {
+  document.getElementById('session-name-label').textContent = session.name || sessionId;
+  document.title = `${session.name || 'Champagne Vote'} — Vote`;
+
+  const pill = document.getElementById('status-pill');
+  const mainUI = document.getElementById('main-ui');
+  const closedScreen = document.getElementById('closed-screen');
+  const submitWrap = document.getElementById('submit-wrap');
+
+  if (!session.votingOpen) {
+    pill.className = 'pill pill-closed';
+    pill.innerHTML = '<span class="dot dot-off"></span>Voting not open';
+    mainUI.style.display = 'none';
+    closedScreen.style.display = 'block';
+    submitWrap.style.display = 'none';
+    return;
+  }
+
+  pill.className = 'pill pill-open';
+  pill.innerHTML = '<span class="dot dot-on"></span>Voting is open';
+  mainUI.style.display = 'block';
+  closedScreen.style.display = 'none';
+  submitWrap.style.display = 'block';
+  renderWines();
+}
+
+function renderWines() {
+  const el = document.getElementById('wines-list');
+  el.innerHTML = session.wines.map((w, i) => `
+    <div class="wine-card ${selected===w?'selected':''}" onclick="window._pick(${i})">
+      <div class="wc-left">
+        <div class="wc-num">${String(i+1).padStart(2,'0')}</div>
+        <div class="wc-name">${w}</div>
+      </div>
+      <div class="check">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+          <path d="M2 7l3.5 3.5L12 4" stroke="#1a1400" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>`).join('');
+  document.getElementById('btn-submit').disabled = !selected;
+}
+
+window._pick = i => {
+  selected = session.wines[i];
+  document.getElementById('btn-submit').disabled = false;
+  renderWines();
+};
+
+window.submitVote = async () => {
+  if (!selected || !session.votingOpen || !sessionId) return;
+  const voteRef = ref(db, `sessions/${sessionId}/votes/${selected}`);
+  await runTransaction(voteRef, cur => (cur || 0) + 1);
+  votedChoice = selected;
+  hasVoted = true;
+  // Update local votes optimistically
+  session.votes[selected] = (session.votes[selected] || 0) + 1;
+
+  document.getElementById('main-ui').style.display = 'none';
+  document.getElementById('submit-wrap').style.display = 'none';
+  document.getElementById('voted-screen').classList.add('show');
+
+  const pill = document.getElementById('status-pill');
+  pill.className = 'pill pill-open';
+  pill.innerHTML = '<span class="dot dot-on"></span>Vote submitted';
+
+  renderPostResults();
+};
+
+function renderPostResults() {
+  const el = document.getElementById('post-results');
+  const total = Object.values(session.votes).reduce((a,b)=>a+b,0);
+  const sorted = [...session.wines].sort((a,b)=>(session.votes[b]||0)-(session.votes[a]||0));
+  const max = Math.max(...sorted.map(w=>session.votes[w]||0), 1);
+  el.innerHTML = sorted.map((w, i) => {
+    const v = session.votes[w]||0;
+    const pct = total > 0 ? Math.round((v/total)*100) : 0;
+    const yours = w === votedChoice;
+    return `<div class="r-item">
+      <div class="r-meta">
+        <span style="${yours?'color:var(--gold-light)':''}">${i===0&&v>0?'🏆 ':''}${w}${yours?' ✓':''}</span>
+        <span class="r-pct">${pct}%</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round((v/max)*100)}%"></div></div>
+    </div>`;
+  }).join('');
+}
+
+// Bubbles
+const bc = document.getElementById('bubbles');
+for (let i=0;i<14;i++) {
+  const b = document.createElement('div');
+  b.className = 'bubble';
+  const s = 4 + Math.random()*16;
+  b.style.cssText = `width:${s}px;height:${s}px;left:${Math.random()*100}%;animation-duration:${6+Math.random()*10}s;animation-delay:${Math.random()*9}s;`;
+  bc.appendChild(b);
+}
+</script>
+</body>
+</html>
