@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Champagne Vote</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0c0a;
+    --surface: #1a1714;
+    --surface2: #242018;
+    --border: rgba(212,175,100,0.18);
+    --gold: #d4af64;
+    --gold-light: #e8cf94;
+    --cream: #f5efe0;
+    --muted: rgba(245,239,224,0.45);
+    --font-display: 'Cormorant Garamond', Georgia, serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--cream); font-family: var(--font-display); min-height: 100vh; }
+
+  /* ── decorative bubbles ── */
+  .bubbles { position: fixed; bottom: 0; left: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; z-index: 0; }
+  .bubble { position: absolute; bottom: -20px; border-radius: 50%; background: rgba(212,175,100,0.06); animation: rise linear infinite; }
+  @keyframes rise { 0%{transform:translateY(0) scale(1);opacity:0.6} 100%{transform:translateY(-110vh) scale(0.4);opacity:0} }
+
+  .shell { position: relative; z-index: 1; max-width: 480px; margin: 0 auto; padding: 0 1.25rem 5rem; }
+
+  /* ── header ── */
+  header { text-align: center; padding: 3rem 0 2rem; }
+  .eyebrow { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); margin-bottom: 0.6rem; }
+  h1 { font-size: 2.4rem; font-weight: 300; letter-spacing: 0.05em; }
+  h1 em { font-style: italic; color: var(--gold-light); }
+  .session-label { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-top: 0.5rem; }
+
+  /* ── status ── */
+  .status-bar { text-align: center; margin-bottom: 2rem; }
+  .status-pill {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em;
+    padding: 0.35rem 0.9rem; border-radius: 99px; border: 1px solid;
+  }
+  .status-pill.open { color: #2ecc71; border-color: rgba(46,204,113,0.35); background: rgba(46,204,113,0.07); }
+  .status-pill.closed { color: var(--muted); border-color: var(--border); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .dot.open { background: #2ecc71; animation: pulse 1.8s infinite; }
+  .dot.closed { background: var(--muted); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* ── wine cards ── */
+  .wines { display: flex; flex-direction: column; gap: 0.85rem; margin-bottom: 2rem; }
+  .wine-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 1.25rem 1.4rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: space-between;
+    transition: all 0.22s; position: relative; overflow: hidden;
+  }
+  .wine-card::before { content:''; position:absolute; inset:0; background:var(--gold); opacity:0; transition:opacity 0.2s; }
+  .wine-card:hover::before { opacity:0.04; }
+  .wine-card.selected { border-color: var(--gold); background: rgba(212,175,100,0.1); }
+  .wine-card.selected::after { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--gold); border-radius:8px 0 0 8px; }
+  .wine-card .wine-num { font-family:var(--font-mono); font-size:11px; color:var(--gold); margin-bottom:0.3rem; }
+  .wine-card .wine-name { font-size:1.2rem; font-weight:300; position:relative; z-index:1; }
+  .wine-card .check { width:26px; height:26px; border-radius:50%; border:1.5px solid var(--border); display:flex; align-items:center; justify-content:center; transition:all 0.2s; flex-shrink:0; }
+  .wine-card.selected .check { background:var(--gold); border-color:var(--gold); }
+  .check-icon { width:14px; height:14px; opacity:0; transition:opacity 0.2s; }
+  .wine-card.selected .check-icon { opacity:1; }
+
+  /* ── submit ── */
+  .submit-wrap { position: fixed; bottom: 0; left: 0; right: 0; padding: 1rem 1.25rem 1.5rem; background: linear-gradient(transparent, var(--bg) 40%); z-index: 10; }
+  .btn-submit {
+    width: 100%; padding: 1rem; font-family: var(--font-display); font-style:italic;
+    font-size: 1.2rem; font-weight: 300; letter-spacing:0.06em;
+    background: var(--gold); color: #1a1400; border: none; border-radius: 8px;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .btn-submit:hover { background: var(--gold-light); }
+  .btn-submit:disabled { opacity: 0.3; cursor: default; }
+
+  /* ── voted state ── */
+  .voted-screen { text-align: center; padding: 4rem 1rem; display: none; }
+  .voted-screen.show { display: block; }
+  .champagne-icon { font-size: 4rem; margin-bottom: 1.5rem; animation: pop 0.5s cubic-bezier(.4,0,.2,1); }
+  @keyframes pop { 0%{transform:scale(0.5);opacity:0} 80%{transform:scale(1.15)} 100%{transform:scale(1);opacity:1} }
+  .voted-title { font-size: 2rem; font-weight: 300; margin-bottom: 0.5rem; }
+  .voted-subtitle { font-family: var(--font-mono); font-size: 12px; color: var(--muted); letter-spacing: 0.1em; }
+
+  /* ── results display ── */
+  .results-section { margin-top: 2.5rem; }
+  .sec-title { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); margin-bottom: 1rem; display: flex; align-items: center; gap: 0.6rem; }
+  .sec-title::after { content:''; flex:1; height:1px; background:var(--border); }
+  .result-item { margin-bottom: 0.85rem; }
+  .result-meta { display: flex; justify-content: space-between; font-size: 0.95rem; margin-bottom: 0.35rem; }
+  .result-pct { font-family: var(--font-mono); font-size: 12px; color: var(--gold); }
+  .bar-track { height: 5px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--gold), var(--gold-light)); transition: width 0.7s cubic-bezier(.4,0,.2,1); }
+
+  /* ── closed screen ── */
+  .closed-screen { text-align: center; padding: 4rem 1rem; }
+  .closed-screen h2 { font-size: 1.8rem; font-weight: 300; margin-bottom: 0.75rem; color: var(--muted); }
+  .closed-screen p { font-family: var(--font-mono); font-size: 11px; color: var(--muted); letter-spacing:0.1em; }
+
+  .wines-wrap { transition: opacity 0.2s; }
+  .wines-wrap.hidden { opacity: 0.3; pointer-events: none; }
+</style>
+</head>
+<body>
+
+<div class="bubbles" id="bubbles"></div>
+
+<div class="shell">
+  <header>
+    <div class="eyebrow">Champagne Tasting</div>
+    <h1>Cast Your <em>Vote</em></h1>
+    <div class="session-label" id="session-label">——</div>
+  </header>
+
+  <div class="status-bar">
+    <span id="status-pill" class="status-pill closed"><span class="dot closed"></span>等待開始</span>
+  </div>
+
+  <!-- Main voting UI -->
+  <div id="main-ui">
+    <div class="wines-wrap" id="wines-wrap">
+      <div class="wines" id="wines-list"></div>
+    </div>
+  </div>
+
+  <!-- Closed screen -->
+  <div class="closed-screen" id="closed-screen" style="display:none">
+    <h2>投票尚未開始</h2>
+    <p>請等候主持人開始投票</p>
+  </div>
+
+  <!-- Voted screen -->
+  <div class="voted-screen" id="voted-screen">
+    <div class="champagne-icon">🥂</div>
+    <div class="voted-title">多謝你的投票！</div>
+    <div class="voted-subtitle" style="margin-bottom:2rem">Your vote has been cast</div>
+    <div class="results-section" id="post-vote-results"></div>
+  </div>
+</div>
+
+<!-- Submit button -->
+<div class="submit-wrap" id="submit-wrap">
+  <button class="btn-submit" id="btn-submit" disabled onclick="submitVote()">
+    投出你的選擇
+  </button>
+</div>
+
+<script>
+let state = { wines: [], votes: {}, votingOpen: false, sessionName: '' };
+let selected = null;
+let hasVoted = false;
+let votedChoice = null;
+
+function loadState() {
+  try {
+    const s = localStorage.getItem('champagne-vote-state');
+    if (s) state = JSON.parse(s);
+    if (!state.wines) state.wines = [];
+    if (!state.votes) state.votes = {};
+  } catch(e) {}
+}
+
+function saveState() {
+  localStorage.setItem('champagne-vote-state', JSON.stringify(state));
+  localStorage.setItem('champagne-vote-signal', Date.now().toString());
+}
+
+function render() {
+  document.getElementById('session-label').textContent = state.sessionName || 'Champagne Tasting';
+  const pill = document.getElementById('status-pill');
+  const mainUI = document.getElementById('main-ui');
+  const closedScreen = document.getElementById('closed-screen');
+  const submitWrap = document.getElementById('submit-wrap');
+  const winesWrap = document.getElementById('wines-wrap');
+
+  if (hasVoted) {
+    mainUI.style.display = 'none';
+    closedScreen.style.display = 'none';
+    submitWrap.style.display = 'none';
+    document.getElementById('voted-screen').classList.add('show');
+    renderPostVoteResults();
+    pill.className = 'status-pill open';
+    pill.innerHTML = '<span class="dot open"></span>已投票';
+    return;
+  }
+
+  if (!state.votingOpen) {
+    pill.className = 'status-pill closed';
+    pill.innerHTML = '<span class="dot closed"></span>投票未開始';
+    mainUI.style.display = 'none';
+    closedScreen.style.display = 'block';
+    submitWrap.style.display = 'none';
+    return;
+  }
+
+  pill.className = 'status-pill open';
+  pill.innerHTML = '<span class="dot open"></span>投票進行中';
+  mainUI.style.display = 'block';
+  closedScreen.style.display = 'none';
+  submitWrap.style.display = 'block';
+
+  renderWines();
+}
+
+function renderWines() {
+  const el = document.getElementById('wines-list');
+  el.innerHTML = state.wines.map((w, i) => `
+    <div class="wine-card ${selected===w?'selected':''}" onclick="selectWine('${w.replace(/'/g,"\\'")}')">
+      <div>
+        <div class="wine-num">${String(i+1).padStart(2,'0')}</div>
+        <div class="wine-name">${w}</div>
+      </div>
+      <div class="check">
+        <svg class="check-icon" viewBox="0 0 14 14" fill="none">
+          <path d="M2 7l3.5 3.5L12 4" stroke="#1a1400" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('btn-submit').disabled = !selected;
+}
+
+function selectWine(name) {
+  selected = name;
+  document.getElementById('btn-submit').disabled = false;
+  renderWines();
+}
+
+function submitVote() {
+  if (!selected || !state.votingOpen) return;
+  state.votes[selected] = (state.votes[selected] || 0) + 1;
+  votedChoice = selected;
+  hasVoted = true;
+  saveState();
+  render();
+}
+
+function renderPostVoteResults() {
+  const el = document.getElementById('post-vote-results');
+  const total = Object.values(state.votes).reduce((a,b)=>a+b,0);
+  const sorted = [...state.wines].sort((a,b)=>(state.votes[b]||0)-(state.votes[a]||0));
+  const max = Math.max(...sorted.map(w=>state.votes[w]||0), 1);
+  el.innerHTML = `<div class="sec-title">目前票數</div>` +
+    sorted.map(w => {
+      const v = state.votes[w]||0;
+      const pct = total>0 ? Math.round((v/total)*100) : 0;
+      const isYours = w === votedChoice;
+      return `<div class="result-item">
+        <div class="result-meta">
+          <span style="${isYours?'color:var(--gold-light)':''}${sorted[0]===w&&v>0?'font-weight:600':''}">${sorted[0]===w&&v>0?'🥂 ':''}${w}${isYours?' ✓':''}</span>
+          <span class="result-pct">${pct}%</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:${Math.round((v/max)*100)}%"></div></div>
+      </div>`;
+    }).join('');
+}
+
+// ── Bubbles ──
+function spawnBubbles() {
+  const container = document.getElementById('bubbles');
+  for (let i = 0; i < 12; i++) {
+    const b = document.createElement('div');
+    b.className = 'bubble';
+    const size = 4 + Math.random() * 14;
+    b.style.cssText = `width:${size}px;height:${size}px;left:${Math.random()*100}%;animation-duration:${5+Math.random()*10}s;animation-delay:${Math.random()*8}s;`;
+    container.appendChild(b);
+  }
+}
+
+// ── Listen for admin changes ──
+window.addEventListener('storage', e => {
+  if (e.key === 'champagne-vote-state') {
+    loadState();
+    render();
+  }
+});
+
+loadState();
+spawnBubbles();
+render();
+</script>
+</body>
+</html>

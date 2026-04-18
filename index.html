@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Champagne Vote — Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<style>
+  :root {
+    --bg: #0e0c0a;
+    --surface: #1a1714;
+    --surface2: #242018;
+    --border: rgba(212,175,100,0.18);
+    --gold: #d4af64;
+    --gold-light: #e8cf94;
+    --cream: #f5efe0;
+    --muted: rgba(245,239,224,0.45);
+    --danger: #c0392b;
+    --success: #2ecc71;
+    --font-display: 'Cormorant Garamond', Georgia, serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--cream);
+    font-family: var(--font-display);
+    min-height: 100vh;
+  }
+  /* ── layout ── */
+  .shell { max-width: 860px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+  /* ── header ── */
+  header { text-align: center; padding: 3rem 0 2.5rem; border-bottom: 1px solid var(--border); margin-bottom: 2.5rem; }
+  header .eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); margin-bottom: 0.75rem; }
+  header h1 { font-size: clamp(2rem, 5vw, 3.2rem); font-weight: 300; letter-spacing: 0.05em; color: var(--cream); }
+  header h1 em { font-style: italic; color: var(--gold-light); }
+  /* ── section title ── */
+  .sec-title { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.75rem; }
+  .sec-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  /* ── card ── */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.5rem; margin-bottom: 1.5rem; }
+  /* ── inputs ── */
+  input[type=text] {
+    background: var(--surface2); border: 1px solid var(--border); color: var(--cream);
+    font-family: var(--font-display); font-size: 1rem; padding: 0.6rem 0.9rem;
+    border-radius: 4px; width: 100%; outline: none; transition: border-color 0.2s;
+  }
+  input[type=text]:focus { border-color: var(--gold); }
+  input[type=text]::placeholder { color: var(--muted); }
+  /* ── buttons ── */
+  .btn {
+    font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.12em;
+    text-transform: uppercase; cursor: pointer; border: 1px solid;
+    border-radius: 4px; padding: 0.55rem 1.2rem; transition: all 0.18s;
+  }
+  .btn-gold { background: var(--gold); color: #1a1400; border-color: var(--gold); }
+  .btn-gold:hover { background: var(--gold-light); }
+  .btn-outline { background: transparent; color: var(--gold); border-color: var(--border); }
+  .btn-outline:hover { border-color: var(--gold); background: rgba(212,175,100,0.07); }
+  .btn-danger { background: transparent; color: #e74c3c; border-color: rgba(231,76,60,0.35); font-size: 11px; padding: 0.3rem 0.6rem; }
+  .btn-danger:hover { background: rgba(231,76,60,0.1); }
+  .btn-green { background: #27ae60; color: #fff; border-color: #27ae60; }
+  .btn-green:hover { background: #2ecc71; }
+  .btn:disabled { opacity: 0.35; cursor: default; }
+  /* ── wine list ── */
+  .wine-list { display: flex; flex-direction: column; gap: 0.65rem; margin-bottom: 1.25rem; }
+  .wine-item {
+    display: flex; align-items: center; gap: 0.75rem;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 4px;
+    padding: 0.65rem 0.9rem;
+  }
+  .wine-item .wine-num { font-family: var(--font-mono); font-size: 12px; color: var(--gold); min-width: 20px; }
+  .wine-item .wine-name { flex: 1; font-size: 1.05rem; }
+  .add-wine-row { display: flex; gap: 0.65rem; }
+  /* ── status badge ── */
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em;
+    padding: 0.3rem 0.75rem; border-radius: 99px; border: 1px solid;
+  }
+  .status-badge.open { color: #2ecc71; border-color: rgba(46,204,113,0.35); background: rgba(46,204,113,0.07); }
+  .status-badge.closed { color: var(--muted); border-color: var(--border); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .dot.open { background: #2ecc71; animation: pulse 1.8s infinite; }
+  .dot.closed { background: var(--muted); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  /* ── control row ── */
+  .ctrl-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  /* ── results ── */
+  .results-grid { display: flex; flex-direction: column; gap: 0.85rem; }
+  .result-row { display: grid; grid-template-columns: 1fr auto; gap: 0.5rem; align-items: center; }
+  .result-label { font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .result-count { font-family: var(--font-mono); font-size: 13px; color: var(--gold); text-align: right; min-width: 50px; }
+  .bar-track { grid-column: 1/-1; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--gold), var(--gold-light)); transition: width 0.6s cubic-bezier(.4,0,.2,1); }
+  .winner-glow { border-color: rgba(212,175,100,0.5); box-shadow: 0 0 18px rgba(212,175,100,0.1); }
+  /* ── QR section ── */
+  .qr-wrap { text-align: center; padding: 1.5rem 0; }
+  .qr-wrap canvas, .qr-wrap img { border-radius: 8px; border: 4px solid #fff; display: inline-block; }
+  .vote-url { font-family: var(--font-mono); font-size: 12px; color: var(--gold); margin-top: 0.75rem; word-break: break-all; }
+  /* ── tabs ── */
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 2rem; }
+  .tab { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; padding: 0.75rem 1.25rem; cursor: pointer; color: var(--muted); border-bottom: 2px solid transparent; transition: all 0.18s; background: none; border-top: none; border-left: none; border-right: none; }
+  .tab.active { color: var(--gold); border-bottom-color: var(--gold); }
+  .tab:hover:not(.active) { color: var(--cream); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  /* ── session name ── */
+  .session-info { font-family: var(--font-mono); font-size: 11px; color: var(--muted); margin-bottom: 0.5rem; }
+  /* ── note ── */
+  .note { font-size: 0.88rem; color: var(--muted); line-height: 1.6; padding: 0.75rem 1rem; background: var(--surface2); border-left: 2px solid var(--gold); border-radius: 0 4px 4px 0; margin-top: 1rem; }
+  /* ── responsive ── */
+  @media(max-width:520px) { .ctrl-row { flex-direction: column; align-items: flex-start; } }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <div class="eyebrow">Wine Event — Admin Panel</div>
+    <h1>Champagne <em>Vote</em></h1>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('setup')">設定</button>
+    <button class="tab" onclick="switchTab('control')">控制投票</button>
+    <button class="tab" onclick="switchTab('results')">結果</button>
+    <button class="tab" onclick="switchTab('qr')">QR Code</button>
+  </div>
+
+  <!-- TAB: 設定 -->
+  <div id="tab-setup" class="tab-panel active">
+    <div class="sec-title">今晚酒款</div>
+    <div class="card">
+      <div class="wine-list" id="wine-list"></div>
+      <div class="add-wine-row">
+        <input type="text" id="new-wine-input" placeholder="輸入酒款名稱，例如 Krug Grande Cuvée" />
+        <button class="btn btn-gold" onclick="addWine()">加入</button>
+      </div>
+      <div class="note">💡 Prototype 模式：資料儲存係瀏覽器本地。接駁 Firebase 後可跨裝置同步。</div>
+    </div>
+    <div class="sec-title">活動名稱</div>
+    <div class="card">
+      <input type="text" id="session-name" placeholder="例如：2025年春季 Champagne Tasting" style="margin-bottom:0" />
+    </div>
+    <button class="btn btn-gold" onclick="saveSetup()" style="width:100%">儲存設定並前往控制</button>
+  </div>
+
+  <!-- TAB: 控制投票 -->
+  <div id="tab-control" class="tab-panel">
+    <div class="sec-title">投票狀態</div>
+    <div class="card">
+      <div class="ctrl-row">
+        <span id="status-badge" class="status-badge closed"><span class="dot closed"></span>投票已關閉</span>
+        <button class="btn btn-green" id="btn-open" onclick="toggleVoting(true)">開始投票</button>
+        <button class="btn btn-outline" id="btn-close" onclick="toggleVoting(false)" disabled>停止投票</button>
+        <button class="btn btn-danger" onclick="resetVotes()">重置票數</button>
+      </div>
+      <div id="live-count" style="font-family:var(--font-mono);font-size:13px;color:var(--muted)">總票數：0</div>
+    </div>
+    <div class="sec-title">即時票數</div>
+    <div class="card" id="live-results-card">
+      <div class="results-grid" id="live-results"></div>
+    </div>
+  </div>
+
+  <!-- TAB: 結果 -->
+  <div id="tab-results" class="tab-panel">
+    <div class="sec-title">最終結果</div>
+    <div id="results-container"></div>
+    <button class="btn btn-outline" onclick="renderResults()" style="margin-top:1rem">重新整理</button>
+  </div>
+
+  <!-- TAB: QR Code -->
+  <div id="tab-qr" class="tab-panel">
+    <div class="sec-title">參加者投票連結</div>
+    <div class="card">
+      <div class="qr-wrap">
+        <canvas id="qr-canvas"></canvas>
+        <div class="vote-url" id="vote-url-display"></div>
+      </div>
+      <div class="note">📱 參加者用手機掃描或開啟連結即可投票。你喺同一設備上直接測試亦可。</div>
+      <div style="margin-top:1rem;text-align:center">
+        <button class="btn btn-outline" onclick="openVotePage()">在新視窗開啟投票頁</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──
+let state = {
+  wines: [],
+  votes: {},
+  sessionName: '',
+  votingOpen: false,
+};
+
+function loadState() {
+  try {
+    const s = localStorage.getItem('champagne-vote-state');
+    if (s) state = JSON.parse(s);
+    if (!state.wines) state.wines = [];
+    if (!state.votes) state.votes = {};
+  } catch(e) {}
+}
+
+function saveState() {
+  localStorage.setItem('champagne-vote-state', JSON.stringify(state));
+  // broadcast to vote page via storage event
+  localStorage.setItem('champagne-vote-signal', Date.now().toString());
+}
+
+// ── Wine list ──
+function renderWineList() {
+  const el = document.getElementById('wine-list');
+  if (!state.wines.length) { el.innerHTML = '<div style="color:var(--muted);font-size:0.9rem;padding:0.5rem 0">尚未加入任何酒款</div>'; return; }
+  el.innerHTML = state.wines.map((w, i) => `
+    <div class="wine-item">
+      <span class="wine-num">${String(i+1).padStart(2,'0')}</span>
+      <span class="wine-name">${w}</span>
+      <button class="btn btn-danger" onclick="removeWine(${i})">移除</button>
+    </div>
+  `).join('');
+}
+
+function addWine() {
+  const inp = document.getElementById('new-wine-input');
+  const name = inp.value.trim();
+  if (!name) return;
+  state.wines.push(name);
+  if (!state.votes[name]) state.votes[name] = 0;
+  inp.value = '';
+  saveState(); renderWineList();
+}
+
+function removeWine(i) {
+  const name = state.wines[i];
+  state.wines.splice(i, 1);
+  delete state.votes[name];
+  saveState(); renderWineList();
+}
+
+document.getElementById('new-wine-input').addEventListener('keydown', e => { if(e.key==='Enter') addWine(); });
+
+function saveSetup() {
+  state.sessionName = document.getElementById('session-name').value.trim() || '今晚 Champagne Tasting';
+  saveState();
+  switchTab('control');
+}
+
+// ── Voting control ──
+function toggleVoting(open) {
+  state.votingOpen = open;
+  saveState(); updateStatusUI(); renderLiveResults();
+}
+
+function resetVotes() {
+  if (!confirm('確定重置所有票數？')) return;
+  state.wines.forEach(w => { state.votes[w] = 0; });
+  saveState(); renderLiveResults();
+}
+
+function updateStatusUI() {
+  const badge = document.getElementById('status-badge');
+  const btnOpen = document.getElementById('btn-open');
+  const btnClose = document.getElementById('btn-close');
+  if (state.votingOpen) {
+    badge.className = 'status-badge open';
+    badge.innerHTML = '<span class="dot open"></span>投票進行中';
+    btnOpen.disabled = true; btnClose.disabled = false;
+  } else {
+    badge.className = 'status-badge closed';
+    badge.innerHTML = '<span class="dot closed"></span>投票已關閉';
+    btnOpen.disabled = false; btnClose.disabled = true;
+  }
+}
+
+function renderLiveResults() {
+  const el = document.getElementById('live-results');
+  const total = Object.values(state.votes).reduce((a,b) => a+b, 0);
+  document.getElementById('live-count').textContent = `總票數：${total}`;
+  if (!state.wines.length) { el.innerHTML = '<div style="color:var(--muted);font-size:0.9rem">尚未設定酒款</div>'; return; }
+  const sorted = [...state.wines].sort((a,b) => (state.votes[b]||0) - (state.votes[a]||0));
+  const max = Math.max(...sorted.map(w => state.votes[w]||0), 1);
+  el.innerHTML = sorted.map((w, i) => {
+    const v = state.votes[w] || 0;
+    const pct = Math.round((v / max) * 100);
+    return `
+      <div class="result-row ${i===0&&v>0?'winner-glow':''}">
+        <span class="result-label">${i===0&&v>0?'🥂 ':''}${w}</span>
+        <span class="result-count">${v} 票</span>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
+      </div>`;
+  }).join('');
+}
+
+function renderResults() {
+  const el = document.getElementById('results-container');
+  const total = Object.values(state.votes).reduce((a,b) => a+b, 0);
+  if (!state.wines.length) { el.innerHTML = '<div class="card" style="color:var(--muted)">尚未設定酒款</div>'; return; }
+  const sorted = [...state.wines].sort((a,b) => (state.votes[b]||0) - (state.votes[a]||0));
+  const max = Math.max(...sorted.map(w => state.votes[w]||0), 1);
+  el.innerHTML = `<div class="card"><div style="margin-bottom:1.25rem;font-family:var(--font-mono);font-size:12px;color:var(--muted)">共 ${total} 票</div><div class="results-grid">` +
+    sorted.map((w, i) => {
+      const v = state.votes[w] || 0;
+      const pct = total > 0 ? Math.round((v/total)*100) : 0;
+      return `
+        <div class="result-row ${i===0&&v>0?'winner-glow':''}">
+          <span class="result-label" style="font-size:1.1rem">${i===0&&v>0?'🏆 ':''}${w}</span>
+          <span class="result-count">${v} 票 · ${pct}%</span>
+          <div class="bar-track" style="height:8px"><div class="bar-fill" style="width:${Math.round((v/max)*100)}%"></div></div>
+        </div>`;
+    }).join('') + '</div></div>';
+}
+
+// ── QR Code ──
+function generateQR() {
+  const voteUrl = window.location.href.replace('index.html','').replace(/\/$/, '') + '/vote.html';
+  document.getElementById('vote-url-display').textContent = voteUrl;
+  QRCode.toCanvas(document.getElementById('qr-canvas'), voteUrl, {
+    width: 200, margin: 2,
+    color: { dark: '#1a1714', light: '#ffffff' }
+  });
+}
+
+function openVotePage() {
+  const voteUrl = window.location.href.replace('index.html','').replace(/\/$/, '') + '/vote.html';
+  window.open(voteUrl, '_blank');
+}
+
+// ── Tabs ──
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.querySelectorAll('.tab')[['setup','control','results','qr'].indexOf(name)].classList.add('active');
+  if (name==='results') renderResults();
+  if (name==='qr') generateQR();
+  if (name==='control') { updateStatusUI(); renderLiveResults(); }
+}
+
+// ── Listen for votes from vote page ──
+window.addEventListener('storage', e => {
+  if (e.key === 'champagne-vote-state') {
+    loadState();
+    renderLiveResults();
+    updateStatusUI();
+  }
+});
+
+// ── Init ──
+loadState();
+document.getElementById('session-name').value = state.sessionName || '';
+renderWineList();
+updateStatusUI();
+renderLiveResults();
+</script>
+</body>
+</html>
