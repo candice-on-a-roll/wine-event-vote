@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Champagne Vote — Setup</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<style>
+  :root{
+    --bg:#0e0c0a;--surface:#1a1714;--surface2:#1f1c17;--surface3:#272318;
+    --border:rgba(212,175,100,0.18);--border-h:rgba(212,175,100,0.4);
+    --gold:#d4af64;--gold-light:#e8cf94;--gold-dim:rgba(212,175,100,0.09);
+    --cream:#f5efe0;--muted:rgba(245,239,224,0.42);--muted2:rgba(245,239,224,0.2);
+    --red:#e74c3c;--green:#27ae60;
+    --font-d:'Cormorant Garamond',Georgia,serif;
+    --font-m:'DM Mono',monospace;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--cream);font-family:var(--font-d);min-height:100vh}
+
+  /* bubbles */
+  .bubbles{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+  .bubble{position:absolute;bottom:-20px;border-radius:50%;background:rgba(212,175,100,0.05);animation:rise linear infinite}
+  @keyframes rise{0%{transform:translateY(0) scale(1);opacity:.7}100%{transform:translateY(-110vh) scale(.3);opacity:0}}
+
+  /* gate */
+  #gate{position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;align-items:center;justify-content:center;padding:2rem}
+  .gate-card{position:relative;z-index:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:3rem 2.5rem;max-width:360px;width:100%;text-align:center}
+  .gate-eyebrow{font-family:var(--font-m);font-size:10px;letter-spacing:0.25em;text-transform:uppercase;color:var(--gold);margin-bottom:0.7rem}
+  .gate-h{font-size:2.2rem;font-weight:300;margin-bottom:0.4rem}
+  .gate-h em{font-style:italic;color:var(--gold-light)}
+  .gate-sub{font-family:var(--font-m);font-size:11px;color:var(--muted);margin-bottom:2rem}
+  .gate-input{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--cream);font-family:var(--font-m);font-size:15px;padding:0.75rem 1rem;border-radius:6px;outline:none;text-align:center;letter-spacing:0.18em;margin-bottom:1rem;transition:border-color .2s}
+  .gate-input:focus{border-color:var(--gold)}
+  .gate-btn{width:100%;padding:0.85rem;font-family:var(--font-d);font-style:italic;font-size:1.15rem;font-weight:300;background:var(--gold);color:#1a1400;border:none;border-radius:6px;cursor:pointer;transition:background .2s}
+  .gate-btn:hover{background:var(--gold-light)}
+  .gate-err{font-family:var(--font-m);font-size:11px;color:var(--red);margin-top:.75rem;min-height:1.2em}
+
+  /* app */
+  #app{display:none;position:relative;z-index:1}
+  .shell{max-width:920px;margin:0 auto;padding:2rem 1.5rem 5rem}
+
+  /* header */
+  header{text-align:center;padding:2.5rem 0 2rem;border-bottom:1px solid var(--border);margin-bottom:0}
+  .eyebrow{font-family:var(--font-m);font-size:10px;letter-spacing:0.25em;text-transform:uppercase;color:var(--gold);margin-bottom:0.6rem}
+  h1{font-size:clamp(2rem,5vw,3.2rem);font-weight:300;letter-spacing:0.04em;line-height:1}
+  h1 em{font-style:italic;color:var(--gold-light)}
+  .hdr-meta{display:flex;align-items:center;justify-content:center;gap:1.5rem;margin-top:.8rem;flex-wrap:wrap}
+  .fb-row{font-family:var(--font-m);font-size:10px;color:var(--muted);display:inline-flex;align-items:center;gap:.4rem}
+  .fb-dot{width:6px;height:6px;border-radius:50%;background:var(--red);transition:background .3s}
+  .fb-dot.on{background:var(--green);animation:pulse 2s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .chip{font-family:var(--font-m);font-size:10px;color:var(--gold);background:var(--gold-dim);border:1px solid var(--border);border-radius:99px;padding:.22rem .75rem}
+
+  /* session bar */
+  .sbar{display:flex;align-items:center;gap:.75rem;padding:1rem 0;border-bottom:1px solid var(--border);margin-bottom:2rem;flex-wrap:wrap}
+  .sbar label{font-family:var(--font-m);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);white-space:nowrap}
+  .sbar select{flex:1;min-width:160px;background:var(--surface2);border:1px solid var(--border);color:var(--cream);font-family:var(--font-m);font-size:12px;padding:.42rem .75rem;border-radius:4px;outline:none;cursor:pointer}
+  .sbar select:focus{border-color:var(--gold)}
+  .sbar select option{background:var(--surface2)}
+  .btn-new{font-family:var(--font-m);font-size:11px;letter-spacing:.1em;text-transform:uppercase;background:var(--gold-dim);border:1px solid var(--border);color:var(--gold);padding:.42rem .9rem;border-radius:4px;cursor:pointer;white-space:nowrap;transition:all .18s}
+  .btn-new:hover{border-color:var(--gold);background:rgba(212,175,100,.16)}
+
+  /* tabs */
+  .tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:2rem}
+  .tab{font-family:var(--font-m);font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:.65rem 1.1rem;cursor:pointer;color:var(--muted);border:none;border-bottom:2px solid transparent;background:none;transition:all .18s}
+  .tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+  .tab:hover:not(.active){color:var(--cream)}
+  .tab-panel{display:none}
+  .tab-panel.active{display:block}
+
+  /* section heading */
+  .sec{font-family:var(--font-m);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem;display:flex;align-items:center;gap:.6rem}
+  .sec::after{content:'';flex:1;height:1px;background:var(--border)}
+
+  /* card */
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1.4rem;margin-bottom:1.4rem}
+
+  /* form elements */
+  .field{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--cream);font-family:var(--font-d);font-size:1rem;padding:.52rem .82rem;border-radius:4px;outline:none;transition:border-color .2s}
+  .field:focus{border-color:var(--gold)}
+  .field::placeholder{color:var(--muted2)}
+  input[type=date].field{font-family:var(--font-m);font-size:.85rem}
+  .form-row{margin-bottom:1rem}
+  .form-label{font-family:var(--font-m);font-size:10px;letter-spacing:.15em;text-transform:uppercase;color:var(--gold);margin-bottom:.38rem;display:block}
+  .form-hint{font-family:var(--font-m);font-size:10px;color:var(--muted);margin-top:.35rem}
+
+  /* buttons */
+  .btn{font-family:var(--font-m);font-size:11px;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;border:1px solid;border-radius:4px;padding:.48rem 1rem;transition:all .18s;white-space:nowrap}
+  .btn-gold{background:var(--gold);color:#1a1400;border-color:var(--gold)}
+  .btn-gold:hover{background:var(--gold-light)}
+  .btn-outline{background:transparent;color:var(--gold);border-color:var(--border)}
+  .btn-outline:hover{border-color:var(--gold);background:var(--gold-dim)}
+  .btn-green{background:var(--green);color:#fff;border-color:var(--green)}
+  .btn-green:hover{background:#2ecc71}
+  .btn-red{background:transparent;color:var(--red);border-color:rgba(231,76,60,.28);font-size:10px;padding:.25rem .55rem}
+  .btn-red:hover{background:rgba(231,76,60,.1)}
+  .btn:disabled{opacity:.3;cursor:default}
+
+  /* ── QUESTIONS BUILDER ── */
+  .q-list{display:flex;flex-direction:column;gap:1rem;margin-bottom:1.2rem}
+  .q-card{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:1rem 1.1rem;transition:border-color .18s}
+  .q-card:hover{border-color:var(--border-h)}
+  .q-header{display:flex;align-items:center;gap:.7rem;margin-bottom:.75rem}
+  .q-num{font-family:var(--font-m);font-size:10px;color:var(--gold);min-width:22px}
+  .q-title{flex:1;font-size:1rem}
+  .q-type-badge{font-family:var(--font-m);font-size:9px;letter-spacing:.08em;text-transform:uppercase;padding:.18rem .5rem;border-radius:99px;border:1px solid var(--border);color:var(--muted)}
+  .q-options{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:.5rem}
+  .q-opt{font-family:var(--font-m);font-size:11px;background:var(--surface3);border:1px solid var(--border);border-radius:4px;padding:.22rem .6rem;color:var(--cream);display:flex;align-items:center;gap:.35rem}
+  .q-opt-del{cursor:pointer;color:var(--muted);font-size:13px;line-height:1;transition:color .15s}
+  .q-opt-del:hover{color:var(--red)}
+  .q-add-opt{display:flex;gap:.5rem;align-items:center}
+  .q-add-opt input{flex:1}
+
+  /* ── status / results ── */
+  .badge{display:inline-flex;align-items:center;gap:.38rem;font-family:var(--font-m);font-size:10px;letter-spacing:.08em;padding:.25rem .68rem;border-radius:99px;border:1px solid}
+  .badge-open{color:#2ecc71;border-color:rgba(46,204,113,.3);background:rgba(46,204,113,.07)}
+  .badge-closed{color:var(--muted);border-color:var(--border)}
+  .dot{width:6px;height:6px;border-radius:50%}
+  .dot-on{background:#2ecc71;animation:pulse 1.8s infinite}
+  .dot-off{background:var(--muted2)}
+  .ctrl-row{display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;margin-bottom:1rem}
+  .r-grid{display:flex;flex-direction:column;gap:.85rem}
+  .r-row{display:grid;grid-template-columns:1fr auto;gap:.4rem}
+  .r-label{font-size:.98rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .r-count{font-family:var(--font-m);font-size:12px;color:var(--gold);text-align:right;min-width:54px}
+  .bar-track{grid-column:1/-1;height:5px;background:var(--surface3);border-radius:3px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--gold),var(--gold-light));transition:width .55s cubic-bezier(.4,0,.2,1)}
+  .winner-row{padding:.4rem .6rem;background:var(--gold-dim);border:1px solid var(--border-h);border-radius:4px}
+
+  /* QR */
+  .qr-box{text-align:center;padding:1.5rem 0 1rem}
+  .qr-box canvas{border-radius:6px;border:4px solid #fff;display:inline-block}
+  .qr-url{font-family:var(--font-m);font-size:11px;color:var(--gold);margin-top:.75rem;word-break:break-all}
+  .qr-acts{display:flex;gap:.6rem;justify-content:center;margin-top:1rem;flex-wrap:wrap}
+
+  /* history */
+  .h-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:.85rem}
+  .hc{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:1rem 1.1rem;cursor:pointer;transition:all .18s}
+  .hc:hover{border-color:var(--border-h);background:var(--surface3)}
+  .hc.act{border-color:var(--gold)}
+  .hc-name{font-size:1.05rem;margin-bottom:.28rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hc-meta{font-family:var(--font-m);font-size:10px;color:var(--muted)}
+  .hc-badge{font-family:var(--font-m);font-size:9px;padding:.16rem .48rem;border-radius:99px;margin-top:.5rem;display:inline-block}
+  .hc-open{background:rgba(46,204,113,.1);color:#2ecc71;border:1px solid rgba(46,204,113,.25)}
+  .hc-closed{background:var(--surface);color:var(--muted);border:1px solid var(--border)}
+
+  .note{font-size:.85rem;color:var(--muted);line-height:1.6;padding:.6rem .85rem;background:var(--surface2);border-left:2px solid var(--gold);border-radius:0 4px 4px 0;margin-top:1rem}
+  .empty-msg{color:var(--muted);font-family:var(--font-m);font-size:12px;padding:2rem 0;text-align:center}
+
+  /* modal */
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:200;display:flex;align-items:center;justify-content:center;padding:1rem;opacity:0;pointer-events:none;transition:opacity .2s}
+  .modal-bg.show{opacity:1;pointer-events:all}
+  .modal{background:var(--surface);border:1px solid var(--border-h);border-radius:8px;padding:2rem;width:100%;max-width:460px;max-height:90vh;overflow-y:auto}
+  .modal-h{font-size:1.6rem;font-weight:300;margin-bottom:1.4rem}
+  .modal-h em{font-style:italic;color:var(--gold-light)}
+  .modal-acts{display:flex;gap:.65rem;margin-top:1.5rem}
+
+  /* add-question modal extra */
+  .type-grid{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-bottom:1.2rem}
+  .type-opt{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.7rem .9rem;cursor:pointer;transition:all .18s;text-align:center}
+  .type-opt:hover{border-color:var(--border-h)}
+  .type-opt.sel{border-color:var(--gold);background:var(--gold-dim)}
+  .type-opt .t-icon{font-size:1.3rem;margin-bottom:.3rem}
+  .type-opt .t-name{font-family:var(--font-m);font-size:10px;letter-spacing:.08em;color:var(--gold)}
+  .type-opt .t-desc{font-size:.8rem;color:var(--muted);margin-top:.15rem}
+
+  @media(max-width:520px){
+    .ctrl-row{flex-direction:column;align-items:flex-start}
+    .sbar{flex-direction:column;align-items:flex-start}
+    .sbar select{width:100%}
+    .type-grid{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<!-- Bubbles layers -->
+<div class="bubbles" id="gate-bub"></div>
+
+<!-- Password Gate -->
+<div id="gate">
+  <div class="gate-card">
+    <div class="gate-eyebrow">Admin Access</div>
+    <div class="gate-h">Champagne <em>Setup</em></div>
+    <div class="gate-sub">Enter your password to continue</div>
+    <input class="gate-input" type="password" id="pw" placeholder="••••••••" autocomplete="off">
+    <button class="gate-btn" onclick="checkPw()">Enter</button>
+    <div class="gate-err" id="pw-err"></div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <div class="bubbles" id="app-bub"></div>
+  <div class="shell">
+
+    <header>
+      <div class="eyebrow">Wine Event — Admin Panel</div>
+      <h1>Champagne <em>Setup</em></h1>
+      <div class="hdr-meta">
+        <span class="fb-row"><span class="fb-dot" id="fb-dot"></span><span id="fb-lbl">Connecting...</span></span>
+        <span class="chip" id="active-chip">No session selected</span>
+      </div>
+    </header>
+
+    <div class="sbar">
+      <label>Session</label>
+      <select id="ss-sel" onchange="onSelChange()">
+        <option value="">— Select a session —</option>
+      </select>
+      <button class="btn-new" onclick="openNewModal()">+ New Session</button>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('setup')">Setup</button>
+      <button class="tab" onclick="switchTab('control')">Control</button>
+      <button class="tab" onclick="switchTab('results')">Results</button>
+      <button class="tab" onclick="switchTab('qr')">QR Code</button>
+      <button class="tab" onclick="switchTab('history')">All Sessions</button>
+    </div>
+
+    <!-- SETUP TAB -->
+    <div id="tab-setup" class="tab-panel active">
+      <div id="setup-empty" class="empty-msg">Select or create a session above to get started</div>
+      <div id="setup-body" style="display:none">
+
+        <div class="sec">Session Details</div>
+        <div class="card">
+          <div class="form-row">
+            <label class="form-label">Event name</label>
+            <input type="text" id="ed-name" class="field" placeholder="e.g. Spring 2025 Champagne Tasting">
+          </div>
+          <div class="form-row" style="margin-bottom:0">
+            <label class="form-label">Date</label>
+            <input type="date" id="ed-date" class="field">
+          </div>
+        </div>
+
+        <div class="sec">Questions
+          <button class="btn btn-gold" onclick="openAddQModal()" style="margin-left:auto;font-size:10px;padding:.3rem .7rem">+ Add Question</button>
+        </div>
+        <div id="q-list" class="q-list"></div>
+        <div id="q-empty" style="display:none;color:var(--muted);font-family:var(--font-m);font-size:11px;padding:.5rem 0 1rem">No questions yet — add one above</div>
+
+        <button class="btn btn-gold" onclick="saveSetup()" style="width:100%;margin-top:.5rem">Save & Go to Control</button>
+      </div>
+    </div>
+
+    <!-- CONTROL TAB -->
+    <div id="tab-control" class="tab-panel">
+      <div id="ctrl-empty" class="empty-msg">Select a session first</div>
+      <div id="ctrl-body" style="display:none">
+        <div class="sec">Voting Status</div>
+        <div class="card">
+          <div class="ctrl-row">
+            <span id="v-badge" class="badge badge-closed"><span class="dot dot-off"></span>Voting Closed</span>
+            <button class="btn btn-green" id="btn-open" onclick="setVoting(true)">Open Voting</button>
+            <button class="btn btn-outline" id="btn-close" onclick="setVoting(false)" disabled>Close Voting</button>
+            <button class="btn btn-red" onclick="resetVotes()">Reset All Votes</button>
+          </div>
+          <div id="total-count" style="font-family:var(--font-m);font-size:12px;color:var(--muted)">Responses: 0</div>
+        </div>
+        <div class="sec">Live Results</div>
+        <div id="live-results"></div>
+      </div>
+    </div>
+
+    <!-- RESULTS TAB -->
+    <div id="tab-results" class="tab-panel">
+      <div id="res-empty" class="empty-msg">Select a session first</div>
+      <div id="res-body" style="display:none">
+        <div class="sec">Final Results</div>
+        <div id="res-container"></div>
+        <button class="btn btn-outline" onclick="renderResults()" style="margin-top:1rem">Refresh</button>
+      </div>
+    </div>
+
+    <!-- QR TAB -->
+    <div id="tab-qr" class="tab-panel">
+      <div id="qr-empty" class="empty-msg">Select a session first</div>
+      <div id="qr-body" style="display:none">
+        <div class="sec">Guest Voting Link</div>
+        <div class="card">
+          <div class="qr-box"><canvas id="qr-canvas"></canvas><div class="qr-url" id="qr-url"></div></div>
+          <div class="qr-acts">
+            <button class="btn btn-outline" onclick="openVote()">Open vote page</button>
+            <button class="btn btn-outline" onclick="copyUrl()">Copy link</button>
+          </div>
+          <div class="note">📱 Each session has its own unique URL. Past events are never overwritten.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORY TAB -->
+    <div id="tab-history" class="tab-panel">
+      <div class="sec">All Sessions</div>
+      <div id="h-grid" class="h-grid"><div style="color:var(--muted);font-family:var(--font-m);font-size:12px">Loading...</div></div>
+    </div>
+
+  </div><!-- shell -->
+</div><!-- app -->
+
+<!-- NEW SESSION MODAL -->
+<div class="modal-bg" id="new-modal" onclick="bgClose(event,'new-modal')">
+  <div class="modal">
+    <div class="modal-h">New <em>Session</em></div>
+    <div class="form-row">
+      <label class="form-label">Event name *</label>
+      <input type="text" id="nm-name" class="field" placeholder="e.g. Christmas 2025 Tasting">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Date</label>
+      <input type="date" id="nm-date" class="field">
+    </div>
+    <div class="form-row">
+      <label class="form-label">Session ID (used in URL)</label>
+      <input type="text" id="nm-slug" class="field" placeholder="e.g. xmas-2025">
+      <div class="form-hint">Lowercase letters, numbers and hyphens only. Auto-filled from name.</div>
+    </div>
+    <div class="modal-acts">
+      <button class="btn btn-gold" onclick="createSession()" style="flex:1">Create Session</button>
+      <button class="btn btn-outline" onclick="closeModal('new-modal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD QUESTION MODAL -->
+<div class="modal-bg" id="aq-modal" onclick="bgClose(event,'aq-modal')">
+  <div class="modal">
+    <div class="modal-h">Add <em>Question</em></div>
+
+    <div class="form-row">
+      <label class="form-label">Question text *</label>
+      <input type="text" id="aq-text" class="field" placeholder="e.g. Which wine did you prefer?">
+    </div>
+
+    <div class="form-row">
+      <label class="form-label">Answer type</label>
+      <div class="type-grid" id="type-grid">
+        <div class="type-opt sel" data-type="single" onclick="selType(this)">
+          <div class="t-icon">🔘</div>
+          <div class="t-name">Single choice</div>
+          <div class="t-desc">Pick one answer</div>
+        </div>
+        <div class="type-opt" data-type="multi" onclick="selType(this)">
+          <div class="t-icon">☑️</div>
+          <div class="t-name">Multiple choice</div>
+          <div class="t-desc">Pick one or more</div>
+        </div>
+        <div class="type-opt" data-type="rating" onclick="selType(this)">
+          <div class="t-icon">⭐</div>
+          <div class="t-name">Rating 1–5</div>
+          <div class="t-desc">Star rating scale</div>
+        </div>
+        <div class="type-opt" data-type="text" onclick="selType(this)">
+          <div class="t-icon">✏️</div>
+          <div class="t-name">Open text</div>
+          <div class="t-desc">Free-form answer</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="opts-section" class="form-row">
+      <label class="form-label">Answer options *</label>
+      <div id="aq-opts-list" style="display:flex;flex-direction:column;gap:.45rem;margin-bottom:.6rem"></div>
+      <div class="q-add-opt">
+        <input type="text" id="aq-opt-inp" class="field" placeholder="Type an option and press Enter or Add">
+        <button class="btn btn-outline" onclick="addOptToModal()">Add</button>
+      </div>
+    </div>
+
+    <div class="modal-acts">
+      <button class="btn btn-gold" onclick="confirmAddQ()" style="flex:1">Add Question</button>
+      <button class="btn btn-outline" onclick="closeModal('aq-modal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT QUESTION MODAL -->
+<div class="modal-bg" id="eq-modal" onclick="bgClose(event,'eq-modal')">
+  <div class="modal">
+    <div class="modal-h">Edit <em>Question</em></div>
+    <div class="form-row">
+      <label class="form-label">Question text</label>
+      <input type="text" id="eq-text" class="field">
+    </div>
+    <div id="eq-opts-section" class="form-row">
+      <label class="form-label">Answer options</label>
+      <div id="eq-opts-list" style="display:flex;flex-direction:column;gap:.45rem;margin-bottom:.6rem"></div>
+      <div class="q-add-opt">
+        <input type="text" id="eq-opt-inp" class="field" placeholder="Add another option">
+        <button class="btn btn-outline" onclick="addOptToEditModal()">Add</button>
+      </div>
+    </div>
+    <div class="modal-acts">
+      <button class="btn btn-gold" onclick="confirmEditQ()" style="flex:1">Save</button>
+      <button class="btn btn-outline" onclick="closeModal('eq-modal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Password (runs immediately, no Firebase needed) ──
+const PW = '12345678';
+document.getElementById('pw').addEventListener('keydown', e => { if(e.key==='Enter') checkPw(); });
+function checkPw(){
+  if(document.getElementById('pw').value === PW){
+    document.getElementById('gate').style.display='none';
+    document.getElementById('app').style.display='block';
+    spawnBubbles('app-bub');
+    initFirebase();
+  } else {
+    document.getElementById('pw-err').textContent='Incorrect password. Please try again.';
+    document.getElementById('pw').value='';
+    document.getElementById('pw').focus();
+    setTimeout(()=>{ document.getElementById('pw-err').textContent=''; },3000);
+  }
+}
+function spawnBubbles(id){
+  const bc=document.getElementById(id);
+  for(let i=0;i<14;i++){const b=document.createElement('div');b.className='bubble';const s=4+Math.random()*16;b.style.cssText=`width:${s}px;height:${s}px;left:${Math.random()*100}%;animation-duration:${6+Math.random()*10}s;animation-delay:${Math.random()*9}s;`;bc.appendChild(b);}
+}
+spawnBubbles('gate-bub');
+</script>
+
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import{getDatabase,ref,set,get,onValue}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const cfg={apiKey:"AIzaSyCkVzgQItYG3IEJIvOh65bE5JVf2TPY6Xg",authDomain:"wine-event-vote.firebaseapp.com",databaseURL:"https://wine-event-vote-default-rtdb.asia-southeast1.firebasedatabase.app",projectId:"wine-event-vote",storageBucket:"wine-event-vote.firebasestorage.app",messagingSenderId:"241534493631",appId:"1:241534493631:web:7eca293ea5dace42f1f70a"};
+
+let db, curId=null, cur={}, allS={}, unsub=null;
+
+// ── Add Question modal state ──
+let aqType='single';
+let aqOpts=[]; // array of strings
+let eqIdx=null;
+let eqOpts=[];
+
+window.initFirebase = async ()=>{
+  const app=initializeApp(cfg);
+  db=getDatabase(app);
+  onValue(ref(db,'.info/connected'),s=>{
+    const on=s.val();
+    document.getElementById('fb-dot').className='fb-dot'+(on?' on':'');
+    document.getElementById('fb-lbl').textContent=on?'Connected':'Disconnected';
+  });
+  await loadAll();
+  const urlId=new URLSearchParams(window.location.search).get('session');
+  if(urlId&&allS[urlId]){document.getElementById('ss-sel').value=urlId;selectSession(urlId);}
+  else showContent(false);
+};
+
+// ── Sessions ──
+async function loadAll(){
+  const s=await get(ref(db,'sessions'));
+  allS=s.val()||{};
+  renderDropdown(); renderHistory();
+}
+
+function renderDropdown(){
+  const sel=document.getElementById('ss-sel');
+  const cur=sel.value;
+  sel.innerHTML='<option value="">— Select a session —</option>';
+  Object.entries(allS).sort((a,b)=>(b[1].date||'').localeCompare(a[1].date||'')).forEach(([id,s])=>{
+    const o=document.createElement('option');o.value=id;o.textContent=`${s.name}${s.date?' · '+s.date:''}`;sel.appendChild(o);
+  });
+  if(curId)sel.value=curId;else if(cur)sel.value=cur;
+}
+
+window.onSelChange=()=>{const id=document.getElementById('ss-sel').value;if(id)selectSession(id);};
+
+function selectSession(id){
+  if(unsub)unsub();
+  curId=id;
+  const url=new URL(window.location);url.searchParams.set('session',id);window.history.replaceState({},'' ,url);
+  document.getElementById('active-chip').textContent=allS[id]?.name||id;
+  unsub=onValue(ref(db,`sessions/${id}`),s=>{
+    const d=s.val();
+    if(d) cur={name:d.name||'',date:d.date||'',questions:d.questions||[],votes:d.votes||{},votingOpen:d.votingOpen||false,responses:d.responses||0};
+    syncUI();
+  });
+  showContent(true);
+}
+
+function showContent(show){
+  ['setup','ctrl','res','qr'].forEach(k=>{
+    document.getElementById(k+'-empty').style.display=show?'none':'block';
+    document.getElementById(k+'-body').style.display=show?'block':'none';
+  });
+}
+
+async function pushCur(){
+  await set(ref(db,`sessions/${curId}`),cur);
+  allS[curId]={...cur};
+  renderDropdown();renderHistory();
+}
+
+function syncUI(){
+  document.getElementById('ed-name').value=cur.name;
+  document.getElementById('ed-date').value=cur.date;
+  renderQList();
+  updateVoteStatus();
+  renderLive();
+  if(document.getElementById('tab-results').classList.contains('active'))renderResults();
+  if(document.getElementById('tab-qr').classList.contains('active'))genQR();
+}
+
+// ── Setup save ──
+window.saveSetup=async()=>{
+  if(!curId)return;
+  cur.name=document.getElementById('ed-name').value.trim()||cur.name;
+  cur.date=document.getElementById('ed-date').value;
+  await pushCur();
+  switchTab('control');
+};
+
+// ── Question list render ──
+function renderQList(){
+  const el=document.getElementById('q-list');
+  const qs=cur.questions||[];
+  if(!qs.length){el.innerHTML='';document.getElementById('q-empty').style.display='block';return;}
+  document.getElementById('q-empty').style.display='none';
+  el.innerHTML=qs.map((q,i)=>{
+    let optHtml='';
+    if(q.type==='rating'){
+      optHtml='<div class="q-options"><span class="q-opt">⭐ 1 – 5 scale</span></div>';
+    } else if(q.type==='text'){
+      optHtml='<div class="q-options"><span class="q-opt">✏️ Open text answer</span></div>';
+    } else {
+      optHtml='<div class="q-options">'+( q.options||[]).map(o=>`<span class="q-opt">${o}</span>`).join('')+'</div>';
+    }
+    return `<div class="q-card">
+      <div class="q-header">
+        <span class="q-num">Q${i+1}</span>
+        <span class="q-title">${q.text}</span>
+        <span class="q-type-badge">${q.type}</span>
+        <button class="btn btn-outline" style="font-size:10px;padding:.22rem .55rem" onclick="window._editQ(${i})">Edit</button>
+        <button class="btn btn-red" onclick="window._delQ(${i})">✕</button>
+      </div>
+      ${optHtml}
+    </div>`;
+  }).join('');
+}
+
+window._delQ=async i=>{
+  cur.questions.splice(i,1);
+  // clear related votes
+  await pushCur();
+};
+
+// ── Add Question Modal ──
+window.openAddQModal=()=>{
+  aqType='single'; aqOpts=[];
+  document.getElementById('aq-text').value='';
+  document.getElementById('aq-opt-inp').value='';
+  document.getElementById('aq-opts-list').innerHTML='';
+  document.querySelectorAll('#type-grid .type-opt').forEach(el=>{el.classList.toggle('sel',el.dataset.type==='single');});
+  document.getElementById('opts-section').style.display='block';
+  openModal('aq-modal');
+  document.getElementById('aq-text').focus();
+};
+
+window.selType=el=>{
+  document.querySelectorAll('#type-grid .type-opt').forEach(e=>e.classList.remove('sel'));
+  el.classList.add('sel');
+  aqType=el.dataset.type;
+  document.getElementById('opts-section').style.display=(aqType==='rating'||aqType==='text')?'none':'block';
+};
+
+window.addOptToModal=()=>{
+  const inp=document.getElementById('aq-opt-inp');
+  const val=inp.value.trim();
+  if(!val)return;
+  aqOpts.push(val); inp.value='';
+  renderAqOpts();
+  document.getElementById('aq-opt-inp').focus();
+};
+document.getElementById('aq-opt-inp').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();window.addOptToModal();}});
+
+function renderAqOpts(){
+  document.getElementById('aq-opts-list').innerHTML=aqOpts.map((o,i)=>`
+    <div style="display:flex;align-items:center;gap:.5rem">
+      <span class="q-opt" style="flex:1">${o}<span class="q-opt-del" onclick="window._delAqOpt(${i})">×</span></span>
+    </div>`).join('');
+}
+window._delAqOpt=i=>{aqOpts.splice(i,1);renderAqOpts();};
+
+window.confirmAddQ=async()=>{
+  const text=document.getElementById('aq-text').value.trim();
+  if(!text){alert('Please enter a question');return;}
+  if((aqType==='single'||aqType==='multi')&&aqOpts.length<2){alert('Please add at least 2 options');return;}
+  if(!cur.questions)cur.questions=[];
+  cur.questions.push({text,type:aqType,options:aqType==='rating'||aqType==='text'?[]:aqOpts.slice()});
+  await pushCur();
+  closeModal('aq-modal');
+};
+
+// ── Edit Question Modal ──
+window._editQ=i=>{
+  eqIdx=i;
+  const q=cur.questions[i];
+  eqOpts=(q.options||[]).slice();
+  document.getElementById('eq-text').value=q.text;
+  document.getElementById('eq-opt-inp').value='';
+  const showOpts=q.type!=='rating'&&q.type!=='text';
+  document.getElementById('eq-opts-section').style.display=showOpts?'block':'none';
+  renderEqOpts();
+  openModal('eq-modal');
+};
+function renderEqOpts(){
+  document.getElementById('eq-opts-list').innerHTML=eqOpts.map((o,i)=>`
+    <div style="display:flex;align-items:center;gap:.5rem">
+      <span class="q-opt" style="flex:1">${o}<span class="q-opt-del" onclick="window._delEqOpt(${i})">×</span></span>
+    </div>`).join('');
+}
+window._delEqOpt=i=>{eqOpts.splice(i,1);renderEqOpts();};
+window.addOptToEditModal=()=>{
+  const inp=document.getElementById('eq-opt-inp');
+  const val=inp.value.trim();if(!val)return;
+  eqOpts.push(val);inp.value='';renderEqOpts();
+};
+document.getElementById('eq-opt-inp').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();window.addOptToEditModal();}});
+window.confirmEditQ=async()=>{
+  const text=document.getElementById('eq-text').value.trim();
+  if(!text){alert('Please enter a question');return;}
+  cur.questions[eqIdx].text=text;
+  if(cur.questions[eqIdx].type!=='rating'&&cur.questions[eqIdx].type!=='text'){
+    if(eqOpts.length<2){alert('Please keep at least 2 options');return;}
+    cur.questions[eqIdx].options=eqOpts.slice();
+  }
+  await pushCur();
+  closeModal('eq-modal');
+};
+
+// ── Modal helpers ──
+function openModal(id){document.getElementById(id).classList.add('show');}
+function closeModal(id){document.getElementById(id).classList.remove('show');}
+window.closeModal=closeModal;
+window.bgClose=(e,id)=>{if(e.target===document.getElementById(id))closeModal(id);};
+
+// ── New session modal ──
+window.openNewModal=()=>{
+  document.getElementById('nm-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('nm-name').value='';
+  document.getElementById('nm-slug').value='';
+  openModal('new-modal');
+  document.getElementById('nm-name').focus();
+};
+document.getElementById('nm-name').addEventListener('input',e=>{
+  document.getElementById('nm-slug').value=e.target.value.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+});
+window.createSession=async()=>{
+  const name=document.getElementById('nm-name').value.trim();
+  const date=document.getElementById('nm-date').value;
+  const slug=document.getElementById('nm-slug').value.trim()||name.toLowerCase().replace(/[^a-z0-9]+/g,'-');
+  if(!name){alert('Please enter an event name');return;}
+  if(allS[slug]){alert(`Session "${slug}" already exists.`);return;}
+  const ns={name,date,questions:[],votes:{},responses:0,votingOpen:false};
+  await set(ref(db,`sessions/${slug}`),ns);
+  allS[slug]=ns;
+  closeModal('new-modal');
+  renderDropdown();renderHistory();
+  selectSession(slug);switchTab('setup');
+};
+
+// ── Voting control ──
+window.setVoting=async open=>{cur.votingOpen=open;await pushCur();};
+window.resetVotes=async()=>{
+  if(!confirm('Reset all responses for this session?'))return;
+  cur.votes={};cur.responses=0;await pushCur();
+};
+function updateVoteStatus(){
+  const b=document.getElementById('v-badge'),bo=document.getElementById('btn-open'),bc=document.getElementById('btn-close');
+  if(cur.votingOpen){b.className='badge badge-open';b.innerHTML='<span class="dot dot-on"></span>Voting Open';bo.disabled=true;bc.disabled=false;}
+  else{b.className='badge badge-closed';b.innerHTML='<span class="dot dot-off"></span>Voting Closed';bo.disabled=false;bc.disabled=true;}
+}
+
+// ── Live results ──
+function renderLive(){
+  const el=document.getElementById('live-results');
+  const qs=cur.questions||[];
+  const votes=cur.votes||{};
+  document.getElementById('total-count').textContent=`Responses: ${cur.responses||0}`;
+  if(!qs.length){el.innerHTML='<div style="color:var(--muted);font-family:var(--font-m);font-size:12px;padding:.5rem 0">No questions configured</div>';return;}
+  el.innerHTML=qs.map((q,qi)=>{
+    if(q.type==='text'||q.type==='rating'){
+      const answers=votes[`q${qi}`]||{};
+      const entries=Object.entries(answers);
+      const inner=entries.length?entries.map(([k,v])=>`<div class="r-row"><span class="r-label">${decodeURIComponent(k)}</span><span class="r-count">${v}×</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round((v/Math.max(...entries.map(e=>e[1]),1))*100)}%"></div></div></div>`).join(''):
+        '<div style="color:var(--muted);font-size:.9rem">No responses yet</div>';
+      return `<div class="card"><div class="sec" style="margin-bottom:.75rem">Q${qi+1}: ${q.text}</div><div class="r-grid">${inner}</div></div>`;
+    }
+    const qVotes=votes[`q${qi}`]||{};
+    const opts=q.options||[];
+    const total=opts.reduce((a,o)=>a+(qVotes[encodeURIComponent(o)]||0),0);
+    const max=Math.max(...opts.map(o=>qVotes[encodeURIComponent(o)]||0),1);
+    const inner=opts.map(o=>{const v=qVotes[encodeURIComponent(o)]||0;return `<div class="r-row"><span class="r-label">${o}</span><span class="r-count">${v} vote${v!==1?'s':''}</span><div class="bar-track"><div class="bar-fill" style="width:${Math.round((v/max)*100)}%"></div></div></div>`;}).join('');
+    return `<div class="card"><div class="sec" style="margin-bottom:.75rem">Q${qi+1}: ${q.text} <span style="font-family:var(--font-m);font-size:10px;color:var(--muted)">${total} response${total!==1?'s':''}</span></div><div class="r-grid">${inner}</div></div>`;
+  }).join('');
+}
+
+// ── Final results ──
+window.renderResults=()=>{
+  const el=document.getElementById('res-container');
+  const qs=cur.questions||[];
+  const votes=cur.votes||{};
+  if(!qs.length){el.innerHTML='<div class="card" style="color:var(--muted)">No questions configured</div>';return;}
+  el.innerHTML=qs.map((q,qi)=>{
+    if(q.type==='text'||q.type==='rating'){
+      const answers=votes[`q${qi}`]||{};
+      const entries=Object.entries(answers).sort((a,b)=>b[1]-a[1]);
+      const inner=entries.length?entries.map(([k,v])=>{const pct=Math.round((v/(cur.responses||1))*100);return`<div class="r-row"><span class="r-label">${decodeURIComponent(k)}</span><span class="r-count">${v}× · ${pct}%</span><div class="bar-track" style="height:7px"><div class="bar-fill" style="width:${Math.round((v/Math.max(...entries.map(e=>e[1]),1))*100)}%"></div></div></div>`}).join(''):
+        '<div style="color:var(--muted);font-size:.9rem">No responses</div>';
+      return `<div class="card"><div class="sec" style="margin-bottom:.75rem">Q${qi+1}: ${q.text}</div><div class="r-grid">${inner}</div></div>`;
+    }
+    const qVotes=votes[`q${qi}`]||{};
+    const opts=q.options||[];
+    const total=opts.reduce((a,o)=>a+(qVotes[encodeURIComponent(o)]||0),0);
+    const max=Math.max(...opts.map(o=>qVotes[encodeURIComponent(o)]||0),1);
+    const sorted=[...opts].sort((a,b)=>(qVotes[encodeURIComponent(b)]||0)-(qVotes[encodeURIComponent(a)]||0));
+    const inner=sorted.map((o,i)=>{const v=qVotes[encodeURIComponent(o)]||0,pct=total>0?Math.round((v/total)*100):0;return `<div class="r-row ${i===0&&v>0?'winner-row':''}"><span class="r-label">${i===0&&v>0?'🏆 ':''}${o}</span><span class="r-count">${v} vote${v!==1?'s':''} · ${pct}%</span><div class="bar-track" style="height:7px"><div class="bar-fill" style="width:${Math.round((v/max)*100)}%"></div></div></div>`;}).join('');
+    return `<div class="card"><div class="sec" style="margin-bottom:.75rem">Q${qi+1}: ${q.text} <span style="font-family:var(--font-m);font-size:10px;color:var(--muted)">${total} response${total!==1?'s':''}</span></div><div class="r-grid">${inner}</div></div>`;
+  }).join('');
+};
+
+// ── QR ──
+function getVoteUrl(){return window.location.href.replace('setup.html','').replace(/\?.*$/,'')+'vote.html?session='+curId;}
+function genQR(){
+  if(!curId)return;
+  const url=getVoteUrl();
+  document.getElementById('qr-url').textContent=url;
+  QRCode.toCanvas(document.getElementById('qr-canvas'),url,{width:200,margin:2,color:{dark:'#1a1714',light:'#ffffff'}});
+}
+window.openVote=()=>window.open(getVoteUrl(),'_blank');
+window.copyUrl=()=>{navigator.clipboard.writeText(getVoteUrl());alert('Link copied!');};
+
+// ── History ──
+function renderHistory(){
+  const el=document.getElementById('h-grid');
+  const entries=Object.entries(allS).sort((a,b)=>(b[1].date||'').localeCompare(a[1].date||''));
+  if(!entries.length){el.innerHTML='<div style="color:var(--muted);font-family:var(--font-m);font-size:12px">No sessions yet</div>';return;}
+  el.innerHTML=entries.map(([id,s])=>{
+    const r=s.responses||0;
+    return `<div class="hc ${id===curId?'act':''}" onclick="window._hPick('${id}')">
+      <div class="hc-name">${s.name||id}</div>
+      <div class="hc-meta">${s.date||'No date'} · ${(s.questions||[]).length} Q · ${r} response${r!==1?'s':''}</div>
+      <span class="hc-badge ${s.votingOpen?'hc-open':'hc-closed'}">${s.votingOpen?'LIVE':'closed'}</span>
+    </div>`;
+  }).join('');
+}
+window._hPick=id=>{document.getElementById('ss-sel').value=id;selectSession(id);switchTab('control');};
+
+// ── Tabs ──
+window.switchTab=name=>{
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+name).classList.add('active');
+  document.querySelectorAll('.tab')[['setup','control','results','qr','history'].indexOf(name)].classList.add('active');
+  if(name==='results')window.renderResults();
+  if(name==='qr')genQR();
+  if(name==='history')renderHistory();
+};
+</script>
+</body>
+</html>

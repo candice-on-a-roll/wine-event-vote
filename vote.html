@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Champagne Vote</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0e0c0a;--surface:#1a1714;--surface2:#1f1c17;
+    --border:rgba(212,175,100,0.18);--border-h:rgba(212,175,100,0.42);
+    --gold:#d4af64;--gold-light:#e8cf94;--gold-dim:rgba(212,175,100,0.1);
+    --cream:#f5efe0;--muted:rgba(245,239,224,0.42);--muted2:rgba(245,239,224,0.2);
+    --font-d:'Cormorant Garamond',Georgia,serif;
+    --font-m:'DM Mono',monospace;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--cream);font-family:var(--font-d);min-height:100vh;padding-bottom:6rem}
+
+  .bubbles{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+  .bubble{position:absolute;bottom:-20px;border-radius:50%;background:rgba(212,175,100,0.05);animation:rise linear infinite}
+  @keyframes rise{0%{transform:translateY(0) scale(1);opacity:.7}100%{transform:translateY(-110vh) scale(.3);opacity:0}}
+
+  .shell{position:relative;z-index:1;max-width:500px;margin:0 auto;padding:0 1.25rem}
+
+  /* header */
+  header{text-align:center;padding:3rem 0 2rem}
+  .eyebrow{font-family:var(--font-m);font-size:10px;letter-spacing:0.24em;text-transform:uppercase;color:var(--gold);margin-bottom:.55rem}
+  h1{font-size:clamp(2.2rem,8vw,3rem);font-weight:300;line-height:1.05}
+  h1 em{font-style:italic;color:var(--gold-light)}
+  .session-lbl{font-family:var(--font-m);font-size:11px;color:var(--muted);margin-top:.5rem}
+
+  /* status pill */
+  .sbar{text-align:center;margin-bottom:2rem}
+  .pill{display:inline-flex;align-items:center;gap:.4rem;font-family:var(--font-m);font-size:10px;letter-spacing:.1em;padding:.3rem .85rem;border-radius:99px;border:1px solid}
+  .pill-open{color:#2ecc71;border-color:rgba(46,204,113,.3);background:rgba(46,204,113,.07)}
+  .pill-closed{color:var(--muted);border-color:var(--border)}
+  .dot{width:6px;height:6px;border-radius:50%}
+  .dot-on{background:#2ecc71;animation:blink 1.8s infinite}
+  .dot-off{background:var(--muted2)}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+
+  /* progress */
+  .progress-bar{height:2px;background:var(--surface2);border-radius:1px;margin-bottom:2rem;overflow:hidden}
+  .progress-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-light));transition:width .4s ease;border-radius:1px}
+  .progress-lbl{font-family:var(--font-m);font-size:10px;color:var(--muted);text-align:center;margin-top:.4rem;margin-bottom:1.5rem}
+
+  /* question card */
+  .q-wrap{animation:fadeIn .3s ease}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  .q-eyebrow{font-family:var(--font-m);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:.6rem}
+  .q-text{font-size:1.5rem;font-weight:300;line-height:1.3;margin-bottom:1.5rem}
+
+  /* single/multi choice */
+  .opts{display:flex;flex-direction:column;gap:.7rem}
+  .opt-btn{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem 1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:.8rem;transition:border-color .2s,background .2s;position:relative;overflow:hidden;text-align:left}
+  .opt-btn:active{transform:scale(.985)}
+  .opt-btn.sel{border-color:var(--gold);background:var(--gold-dim)}
+  .opt-btn.sel::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--gold);border-radius:10px 0 0 10px}
+  .opt-name{font-size:1.1rem;font-weight:300;position:relative;z-index:1}
+  .opt-check{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s}
+  .opt-btn.sel .opt-check{background:var(--gold);border-color:var(--gold)}
+  .opt-check svg{opacity:0;transition:opacity .2s}
+  .opt-btn.sel .opt-check svg{opacity:1}
+  /* multi check is square */
+  .multi .opt-check{border-radius:4px}
+
+  /* rating */
+  .stars{display:flex;gap:.6rem;justify-content:center;margin:1rem 0}
+  .star{font-size:2.2rem;cursor:pointer;transition:transform .15s,opacity .15s;opacity:.35}
+  .star:hover,.star.lit{opacity:1;transform:scale(1.15)}
+  .star.lit{filter:drop-shadow(0 0 6px rgba(212,175,100,.5))}
+  .rating-lbl{font-family:var(--font-m);font-size:11px;color:var(--muted);text-align:center;min-height:1.2em}
+
+  /* open text */
+  .txt-inp{width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--cream);font-family:var(--font-d);font-size:1.1rem;padding:.75rem 1rem;border-radius:8px;outline:none;transition:border-color .2s;resize:vertical;min-height:100px}
+  .txt-inp:focus{border-color:var(--gold)}
+  .txt-inp::placeholder{color:var(--muted2)}
+
+  /* nav buttons */
+  .nav{display:flex;gap:.75rem;margin-top:1.75rem}
+  .btn-back{font-family:var(--font-m);font-size:11px;letter-spacing:.1em;text-transform:uppercase;background:transparent;border:1px solid var(--border);color:var(--muted);padding:.65rem 1.1rem;border-radius:8px;cursor:pointer;transition:all .2s}
+  .btn-back:hover{border-color:var(--border-h);color:var(--cream)}
+  .btn-next{flex:1;padding:.85rem;font-family:var(--font-d);font-style:italic;font-size:1.15rem;font-weight:300;letter-spacing:.05em;background:var(--gold);color:#1a1400;border:none;border-radius:8px;cursor:pointer;transition:background .2s}
+  .btn-next:hover{background:var(--gold-light)}
+  .btn-next:disabled{opacity:.28;cursor:default}
+
+  /* screens */
+  .screen{text-align:center;padding:4rem 1rem 2rem}
+  .big-icon{font-size:3.8rem;margin-bottom:1.4rem;animation:pop .45s cubic-bezier(.4,0,.2,1)}
+  @keyframes pop{0%{transform:scale(.4);opacity:0}80%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
+  .screen-title{font-size:2rem;font-weight:300;margin-bottom:.4rem}
+  .screen-sub{font-family:var(--font-m);font-size:11px;color:var(--muted);letter-spacing:.08em}
+
+  /* results after vote */
+  .res-wrap{margin-top:2.5rem;text-align:left}
+  .res-sec{font-family:var(--font-m);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-bottom:.85rem;display:flex;align-items:center;gap:.5rem}
+  .res-sec::after{content:'';flex:1;height:1px;background:var(--border)}
+  .r-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:1rem 1.1rem;margin-bottom:1rem}
+  .r-q{font-family:var(--font-m);font-size:10px;color:var(--gold);margin-bottom:.65rem;letter-spacing:.06em}
+  .r-item{margin-bottom:.65rem}
+  .r-meta{display:flex;justify-content:space-between;font-size:.92rem;margin-bottom:.28rem}
+  .r-pct{font-family:var(--font-m);font-size:11px;color:var(--gold)}
+  .bar-track{height:4px;background:var(--surface2);border-radius:2px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--gold),var(--gold-light));transition:width .7s cubic-bezier(.4,0,.2,1)}
+
+  .err-screen{text-align:center;padding:4rem 1rem}
+  .err-screen h2{font-size:1.6rem;font-weight:300;color:var(--muted);margin-bottom:.6rem}
+  .err-screen p{font-family:var(--font-m);font-size:11px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="bubbles" id="bubbles"></div>
+<div class="shell">
+  <header>
+    <div class="eyebrow">Champagne Tasting</div>
+    <h1>Cast Your <em>Vote</em></h1>
+    <div class="session-lbl" id="sess-lbl">Loading...</div>
+  </header>
+  <div class="sbar"><span id="status-pill" class="pill pill-closed"><span class="dot dot-off"></span>Loading</span></div>
+
+  <!-- Main voting flow -->
+  <div id="main-ui" style="display:none">
+    <div class="progress-bar"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+    <div class="progress-lbl" id="prog-lbl"></div>
+    <div id="q-area"></div>
+  </div>
+
+  <!-- Screens -->
+  <div id="closed-screen" class="err-screen" style="display:none">
+    <h2>Voting hasn't started</h2><p>Please wait for the host to open voting</p>
+  </div>
+  <div id="no-sess-screen" class="err-screen" style="display:none">
+    <h2>No session found</h2><p>Please ask your host for the correct link</p>
+  </div>
+  <div id="voted-screen" class="screen" style="display:none">
+    <div class="big-icon">🥂</div>
+    <div class="screen-title">Thank you!</div>
+    <div class="screen-sub" style="margin-bottom:.3rem">Your responses have been recorded</div>
+    <div class="res-wrap" id="post-results"></div>
+  </div>
+</div>
+
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import{getDatabase,ref,onValue,runTransaction,get}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const cfg={apiKey:"AIzaSyCkVzgQItYG3IEJIvOh65bE5JVf2TPY6Xg",authDomain:"wine-event-vote.firebaseapp.com",databaseURL:"https://wine-event-vote-default-rtdb.asia-southeast1.firebasedatabase.app",projectId:"wine-event-vote",storageBucket:"wine-event-vote.firebasestorage.app",messagingSenderId:"241534493631",appId:"1:241534493631:web:7eca293ea5dace42f1f70a"};
+const db=getDatabase(initializeApp(cfg));
+const sid=new URLSearchParams(window.location.search).get('session');
+
+let session={questions:[],votes:{},name:'',votingOpen:false,responses:0};
+let curQ=0;           // current question index
+let answers={};       // {qi: answer}  answer = string | string[] | number
+let hasVoted=false;
+
+// ── Star rating state ──
+let hoverStar=0, selStar=0;
+
+if(!sid){
+  show('no-sess-screen');
+  document.getElementById('sess-lbl').textContent='';
+}else{
+  const snap=await get(ref(db,`sessions/${sid}`));
+  if(!snap.val()){show('no-sess-screen');document.getElementById('sess-lbl').textContent='Session not found';}
+  else{
+    onValue(ref(db,`sessions/${sid}`),s=>{
+      const d=s.val();if(!d)return;
+      session={questions:d.questions||[],votes:d.votes||{},name:d.name||'',votingOpen:d.votingOpen||false,responses:d.responses||0};
+      if(!hasVoted)render();
+      else renderPostResults();
+    });
+  }
+}
+
+function show(id){
+  ['main-ui','closed-screen','no-sess-screen','voted-screen'].forEach(x=>document.getElementById(x).style.display='none');
+  document.getElementById(id).style.display='block';
+}
+
+function render(){
+  document.getElementById('sess-lbl').textContent=session.name||sid;
+  document.title=`${session.name||'Champagne Vote'} — Vote`;
+  const pill=document.getElementById('status-pill');
+
+  if(!session.votingOpen){
+    pill.className='pill pill-closed';pill.innerHTML='<span class="dot dot-off"></span>Voting not open';
+    show('closed-screen');return;
+  }
+  pill.className='pill pill-open';pill.innerHTML='<span class="dot dot-on"></span>Voting is open';
+  show('main-ui');
+  renderQuestion();
+}
+
+function renderQuestion(){
+  const qs=session.questions;
+  if(!qs.length){document.getElementById('q-area').innerHTML='<div style="color:var(--muted);font-family:var(--font-m);font-size:12px;text-align:center;padding:2rem 0">No questions configured yet</div>';return;}
+
+  // progress
+  const pct=Math.round((curQ/qs.length)*100);
+  document.getElementById('prog-fill').style.width=pct+'%';
+  document.getElementById('prog-lbl').textContent=`Question ${curQ+1} of ${qs.length}`;
+
+  const q=qs[curQ];
+  let inner='';
+
+  if(q.type==='single'){
+    const ans=answers[curQ]||null;
+    inner=`<div class="opts">`+(q.options||[]).map(o=>`
+      <button class="opt-btn ${ans===o?'sel':''}" onclick="pickSingle(${JSON.stringify(o)})">
+        <span class="opt-name">${o}</span>
+        <span class="opt-check"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 6.5l3 3L11 3" stroke="#1a1400" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>`).join('')+`</div>`;
+  }else if(q.type==='multi'){
+    const ans=answers[curQ]||[];
+    inner=`<div class="opts multi">`+(q.options||[]).map(o=>`
+      <button class="opt-btn ${ans.includes(o)?'sel':''}" onclick="pickMulti(${JSON.stringify(o)})">
+        <span class="opt-name">${o}</span>
+        <span class="opt-check" style="border-radius:4px"><svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 6.5l3 3L11 3" stroke="#1a1400" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      </button>`).join('')+`</div>`;
+  }else if(q.type==='rating'){
+    const ans=answers[curQ]||0;
+    inner=`<div class="stars" id="stars">`+
+      [1,2,3,4,5].map(n=>`<span class="star ${n<=ans?'lit':''}" id="star${n}" onmouseover="hoverS(${n})" onmouseout="unhoverS()" onclick="pickStar(${n})">⭐</span>`).join('')+
+      `</div><div class="rating-lbl" id="rate-lbl">${ans?`${ans} / 5 stars`:''}</div>`;
+  }else{
+    const ans=answers[curQ]||'';
+    inner=`<textarea class="txt-inp" id="txt-ans" placeholder="Type your answer..." onInput="answers[${curQ}]=this.value">${ans}</textarea>`;
+  }
+
+  const canNext=canProceed(q);
+  document.getElementById('q-area').innerHTML=`
+    <div class="q-wrap">
+      <div class="q-eyebrow">Question ${curQ+1}</div>
+      <div class="q-text">${q.text}</div>
+      ${inner}
+      <div class="nav">
+        ${curQ>0?`<button class="btn-back" onclick="prevQ()">← Back</button>`:''}
+        <button class="btn-next" id="btn-next" onclick="nextQ()" ${canNext?'':'disabled'}>
+          ${curQ===qs.length-1?'Submit My Vote':'Next →'}
+        </button>
+      </div>
+    </div>`;
+}
+
+function canProceed(q){
+  if(q.type==='single') return !!answers[curQ];
+  if(q.type==='multi') return (answers[curQ]||[]).length>0;
+  if(q.type==='rating') return (answers[curQ]||0)>0;
+  if(q.type==='text') return (answers[curQ]||'').trim().length>0;
+  return false;
+}
+
+function refreshNext(){
+  const btn=document.getElementById('btn-next');
+  if(btn) btn.disabled=!canProceed(session.questions[curQ]);
+}
+
+// ── Answer handlers ──
+window.pickSingle=o=>{answers[curQ]=o;renderQuestion();};
+window.pickMulti=o=>{
+  if(!answers[curQ])answers[curQ]=[];
+  const arr=answers[curQ];
+  const i=arr.indexOf(o);
+  if(i>-1)arr.splice(i,1);else arr.push(o);
+  renderQuestion();
+};
+window.hoverS=n=>{document.querySelectorAll('.star').forEach((s,i)=>s.classList.toggle('lit',i<n));document.getElementById('rate-lbl').textContent=`${n} / 5 stars`;};
+window.unhoverS=()=>{const cur=answers[curQ]||0;document.querySelectorAll('.star').forEach((s,i)=>s.classList.toggle('lit',i<cur));document.getElementById('rate-lbl').textContent=cur?`${cur} / 5 stars`:'';};
+window.pickStar=n=>{answers[curQ]=n;renderQuestion();};
+
+window.prevQ=()=>{if(curQ>0){curQ--;renderQuestion();}};
+window.nextQ=()=>{
+  const qs=session.questions;
+  if(curQ<qs.length-1){curQ++;renderQuestion();}
+  else submitAll();
+};
+
+// ── Submit ──
+async function submitAll(){
+  if(hasVoted)return;
+  hasVoted=true;
+  const qs=session.questions;
+
+  // Write each answer to Firebase
+  const promises=[];
+  qs.forEach((q,qi)=>{
+    const ans=answers[qi];
+    if(ans===undefined||ans===null||ans===''||(Array.isArray(ans)&&!ans.length))return;
+    if(q.type==='single'){
+      promises.push(runTransaction(ref(db,`sessions/${sid}/votes/q${qi}/${encodeURIComponent(ans)}`),c=>(c||0)+1));
+    }else if(q.type==='multi'){
+      ans.forEach(o=>promises.push(runTransaction(ref(db,`sessions/${sid}/votes/q${qi}/${encodeURIComponent(o)}`),c=>(c||0)+1)));
+    }else if(q.type==='rating'){
+      promises.push(runTransaction(ref(db,`sessions/${sid}/votes/q${qi}/${encodeURIComponent(String(ans)+' star'+( ans!==1?'s':''))}`),c=>(c||0)+1));
+    }else if(q.type==='text'){
+      const val=String(ans).trim();
+      if(val) promises.push(runTransaction(ref(db,`sessions/${sid}/votes/q${qi}/${encodeURIComponent(val)}`),c=>(c||0)+1));
+    }
+  });
+  promises.push(runTransaction(ref(db,`sessions/${sid}/responses`),c=>(c||0)+1));
+  await Promise.all(promises);
+
+  // Update local votes optimistically
+  qs.forEach((q,qi)=>{
+    const ans=answers[qi];
+    if(!session.votes[`q${qi}`])session.votes[`q${qi}`]={};
+    if(q.type==='single'&&ans){const k=encodeURIComponent(ans);session.votes[`q${qi}`][k]=(session.votes[`q${qi}`][k]||0)+1;}
+    else if(q.type==='multi'&&ans){ans.forEach(o=>{const k=encodeURIComponent(o);session.votes[`q${qi}`][k]=(session.votes[`q${qi}`][k]||0)+1;});}
+    else if(q.type==='rating'&&ans){const k=encodeURIComponent(String(ans)+' star'+(ans!==1?'s':''));session.votes[`q${qi}`][k]=(session.votes[`q${qi}`][k]||0)+1;}
+    else if(q.type==='text'&&ans){const k=encodeURIComponent(String(ans).trim());if(k)session.votes[`q${qi}`][k]=(session.votes[`q${qi}`][k]||0)+1;}
+  });
+  session.responses=(session.responses||0)+1;
+
+  const pill=document.getElementById('status-pill');
+  pill.className='pill pill-open';pill.innerHTML='<span class="dot dot-on"></span>Vote submitted';
+  show('voted-screen');
+  renderPostResults();
+}
+
+function renderPostResults(){
+  const el=document.getElementById('post-results');
+  const qs=session.questions;
+  if(!qs.length){el.innerHTML='';return;}
+  el.innerHTML='<div class="res-sec">Your responses · Current standings</div>'+qs.map((q,qi)=>{
+    const myAns=answers[qi];
+    const qv=session.votes[`q${qi}`]||{};
+    if(q.type==='text'){
+      return `<div class="r-card"><div class="r-q">Q${qi+1}: ${q.text}</div><div style="font-size:.95rem;color:var(--muted)">${myAns?`You answered: "${myAns}"`:'No answer given'}</div></div>`;
+    }
+    if(q.type==='rating'){
+      const entries=Object.entries(qv).sort((a,b)=>b[1]-a[1]);
+      const items=entries.map(([k,v])=>`<div class="r-item"><div class="r-meta"><span>${decodeURIComponent(k)}</span><span class="r-pct">${v}×</span></div><div class="bar-track"><div class="bar-fill" style="width:${Math.round((v/Math.max(...entries.map(e=>e[1]),1))*100)}%"></div></div></div>`).join('');
+      return `<div class="r-card"><div class="r-q">Q${qi+1}: ${q.text}</div>${items}</div>`;
+    }
+    const opts=q.options||[];
+    const total=opts.reduce((a,o)=>a+(qv[encodeURIComponent(o)]||0),0);
+    const max=Math.max(...opts.map(o=>qv[encodeURIComponent(o)]||0),1);
+    const sorted=[...opts].sort((a,b)=>(qv[encodeURIComponent(b)]||0)-(qv[encodeURIComponent(a)]||0));
+    const myArr=Array.isArray(myAns)?myAns:(myAns?[myAns]:[]);
+    const items=sorted.map(o=>{
+      const v=qv[encodeURIComponent(o)]||0,pct=total>0?Math.round((v/total)*100):0,mine=myArr.includes(o);
+      return `<div class="r-item"><div class="r-meta"><span style="${mine?'color:var(--gold-light)':''}">${o}${mine?' ✓':''}</span><span class="r-pct">${pct}%</span></div><div class="bar-track"><div class="bar-fill" style="width:${Math.round((v/max)*100)}%"></div></div></div>`;
+    }).join('');
+    return `<div class="r-card"><div class="r-q">Q${qi+1}: ${q.text}</div>${items}</div>`;
+  }).join('');
+}
+
+// bubbles
+const bc=document.getElementById('bubbles');
+for(let i=0;i<14;i++){const b=document.createElement('div');b.className='bubble';const s=4+Math.random()*16;b.style.cssText=`width:${s}px;height:${s}px;left:${Math.random()*100}%;animation-duration:${6+Math.random()*10}s;animation-delay:${Math.random()*9}s;`;bc.appendChild(b);}
+</script>
+</body>
+</html>

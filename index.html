@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Champagne Vote</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#0e0c0a; --surface:#1a1714; --border:rgba(212,175,100,0.18);
+    --gold:#d4af64; --gold-light:#e8cf94; --cream:#f5efe0;
+    --muted:rgba(245,239,224,0.42);
+    --font-d:'Cormorant Garamond',Georgia,serif;
+    --font-m:'DM Mono',monospace;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--cream);font-family:var(--font-d);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem}
+  .bubbles{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+  .bubble{position:absolute;bottom:-20px;border-radius:50%;background:rgba(212,175,100,0.05);animation:rise linear infinite}
+  @keyframes rise{0%{transform:translateY(0) scale(1);opacity:.7}100%{transform:translateY(-110vh) scale(.3);opacity:0}}
+  .card{position:relative;z-index:1;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:3rem 2.5rem;max-width:420px;width:100%;text-align:center}
+  .eyebrow{font-family:var(--font-m);font-size:10px;letter-spacing:0.28em;text-transform:uppercase;color:var(--gold);margin-bottom:0.7rem}
+  h1{font-size:3rem;font-weight:300;line-height:1;margin-bottom:0.4rem}
+  h1 em{font-style:italic;color:var(--gold-light)}
+  .divider{height:1px;background:var(--border);margin:1.75rem 0 2rem}
+  .pill{display:inline-flex;align-items:center;gap:0.4rem;font-family:var(--font-m);font-size:10px;letter-spacing:0.1em;padding:0.3rem 0.8rem;border-radius:99px;border:1px solid;margin-bottom:1.5rem}
+  .pill-open{color:#2ecc71;border-color:rgba(46,204,113,0.3);background:rgba(46,204,113,0.07)}
+  .pill-closed{color:var(--muted);border-color:var(--border)}
+  .dot{width:6px;height:6px;border-radius:50%}
+  .dot-on{background:#2ecc71;animation:pulse 1.8s infinite}
+  .dot-off{background:var(--muted)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .ev-label{font-family:var(--font-m);font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--gold);margin-bottom:0.4rem}
+  .ev-name{font-size:1.4rem;font-weight:300;margin-bottom:0.25rem}
+  .ev-meta{font-family:var(--font-m);font-size:10px;color:var(--muted);margin-bottom:2rem}
+  .btn{display:block;width:100%;padding:1rem;font-family:var(--font-d);font-style:italic;font-size:1.25rem;font-weight:300;letter-spacing:0.05em;background:var(--gold);color:#1a1400;border:none;border-radius:8px;cursor:pointer;text-decoration:none;transition:background 0.2s}
+  .btn:hover{background:var(--gold-light)}
+  .empty{color:var(--muted);font-family:var(--font-m);font-size:11px;line-height:1.9;padding:1rem 0}
+  .footer{font-family:var(--font-m);font-size:10px;color:var(--muted);margin-top:1.5rem}
+</style>
+</head>
+<body>
+<div class="bubbles" id="bubbles"></div>
+<div class="card">
+  <div class="eyebrow">Wine Event</div>
+  <h1>Champagne <em>Vote</em></h1>
+  <div class="divider"></div>
+  <div id="content"><div class="empty">Loading event...</div></div>
+  <div class="footer">Ask your host for a direct session link</div>
+</div>
+
+<script type="module">
+import{initializeApp}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import{getDatabase,ref,onValue}from"https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+const cfg={apiKey:"AIzaSyCkVzgQItYG3IEJIvOh65bE5JVf2TPY6Xg",authDomain:"wine-event-vote.firebaseapp.com",databaseURL:"https://wine-event-vote-default-rtdb.asia-southeast1.firebasedatabase.app",projectId:"wine-event-vote",storageBucket:"wine-event-vote.firebasestorage.app",messagingSenderId:"241534493631",appId:"1:241534493631:web:7eca293ea5dace42f1f70a"};
+const db=getDatabase(initializeApp(cfg));
+const sid=new URLSearchParams(window.location.search).get('session');
+if(sid){
+  onValue(ref(db,`sessions/${sid}`),s=>{const d=s.val();d?show(sid,d):empty()});
+}else{
+  onValue(ref(db,'sessions'),s=>{
+    const all=s.val();
+    if(!all){empty();return}
+    const entries=Object.entries(all);
+    const open=entries.filter(([,s])=>s.votingOpen);
+    const t=(open.length?open:entries).sort((a,b)=>(b[1].date||'').localeCompare(a[1].date||''))[0];
+    show(t[0],t[1]);
+  });
+}
+function show(id,d){
+  const qs=d.questions||[];
+  document.getElementById('content').innerHTML=`
+    <span class="pill ${d.votingOpen?'pill-open':'pill-closed'}">
+      <span class="dot ${d.votingOpen?'dot-on':'dot-off'}"></span>
+      ${d.votingOpen?'Voting is open':'Not open yet'}
+    </span>
+    <div class="ev-label">Tonight's event</div>
+    <div class="ev-name">${d.name||id}</div>
+    <div class="ev-meta">${d.date?d.date+' · ':''}${qs.length} question${qs.length!==1?'s':''}</div>
+    <a class="btn" href="vote.html?session=${id}">${d.votingOpen?'Cast My Vote →':'View Event →'}</a>`;
+}
+function empty(){document.getElementById('content').innerHTML='<div class="empty">No active event right now.<br>Please ask your host for a direct link.</div>'}
+const bc=document.getElementById('bubbles');
+for(let i=0;i<14;i++){const b=document.createElement('div');b.className='bubble';const s=4+Math.random()*16;b.style.cssText=`width:${s}px;height:${s}px;left:${Math.random()*100}%;animation-duration:${6+Math.random()*10}s;animation-delay:${Math.random()*9}s;`;bc.appendChild(b)}
+</script>
+</body>
+</html>
