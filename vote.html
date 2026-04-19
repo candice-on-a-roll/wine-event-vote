@@ -154,24 +154,18 @@ let curQ=0;           // current question index
 let answers={};       // {qi: answer}  answer = string | string[] | number
 let hasVoted=false;
 
-// ── Star rating state ──
-let hoverStar=0, selStar=0;
-
-if(!sid){
-  show('no-sess-screen');
-  document.getElementById('sess-lbl').textContent='';
-}else{
+async function init(){
+  if(!sid){show('no-sess-screen');document.getElementById('sess-lbl').textContent='';return;}
   const snap=await get(ref(db,`sessions/${sid}`));
-  if(!snap.val()){show('no-sess-screen');document.getElementById('sess-lbl').textContent='Session not found';}
-  else{
-    onValue(ref(db,`sessions/${sid}`),s=>{
-      const d=s.val();if(!d)return;
-      session={questions:d.questions||[],votes:d.votes||{},name:d.name||'',votingOpen:d.votingOpen||false,responses:d.responses||0};
-      if(!hasVoted)render();
-      else renderPostResults();
-    });
-  }
+  if(!snap.val()){show('no-sess-screen');document.getElementById('sess-lbl').textContent='Session not found';return;}
+  onValue(ref(db,`sessions/${sid}`),s=>{
+    const d=s.val();if(!d)return;
+    session={questions:d.questions||[],votes:d.votes||{},name:d.name||'',votingOpen:d.votingOpen||false,responses:d.responses||0};
+    if(!hasVoted)render();
+    else renderPostResults();
+  });
 }
+init();
 
 function show(id){
   ['main-ui','closed-screen','no-sess-screen','voted-screen'].forEach(x=>document.getElementById(x).style.display='none');
@@ -256,7 +250,7 @@ function refreshNext(){
   if(btn) btn.disabled=!canProceed(session.questions[curQ]);
 }
 
-// ── Answer handlers ──
+// ── Answer handlers — all on window so inline onclick can reach them ──
 window.pickSingle=o=>{answers[curQ]=o;renderQuestion();};
 window.pickMulti=o=>{
   if(!answers[curQ])answers[curQ]=[];
@@ -265,10 +259,16 @@ window.pickMulti=o=>{
   if(i>-1)arr.splice(i,1);else arr.push(o);
   renderQuestion();
 };
-window.hoverS=n=>{document.querySelectorAll('.star').forEach((s,i)=>s.classList.toggle('lit',i<n));document.getElementById('rate-lbl').textContent=`${n} / 5 stars`;};
-window.unhoverS=()=>{const cur=answers[curQ]||0;document.querySelectorAll('.star').forEach((s,i)=>s.classList.toggle('lit',i<cur));document.getElementById('rate-lbl').textContent=cur?`${cur} / 5 stars`:'';};
+window.hoverS=n=>{
+  document.querySelectorAll('.star').forEach((s,i)=>s.classList.toggle('lit',i<n));
+  const lbl=document.getElementById('rate-lbl');if(lbl)lbl.textContent=`${n} / 5 stars`;
+};
+window.unhoverS=()=>{
+  const c=answers[curQ]||0;
+  document.querySelectorAll('.star').forEach((s,i)=>s.classList.toggle('lit',i<c));
+  const lbl=document.getElementById('rate-lbl');if(lbl)lbl.textContent=c?`${c} / 5 stars`:'';
+};
 window.pickStar=n=>{answers[curQ]=n;renderQuestion();};
-
 window.prevQ=()=>{if(curQ>0){curQ--;renderQuestion();}};
 window.nextQ=()=>{
   const qs=session.questions;
