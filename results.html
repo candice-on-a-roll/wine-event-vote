@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Results</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0806;--sur:#141210;--sur2:#1c1915;
+  --bor:rgba(212,175,100,0.15);--borh:rgba(212,175,100,0.4);
+  --gold:#d4af64;--goldl:#e8cf94;--goldd:rgba(212,175,100,0.12);
+  --cr:#f5efe0;--mu:rgba(245,239,224,0.4);--mu2:rgba(245,239,224,0.18);
+  --fd:'Cormorant Garamond',Georgia,serif;--fm:'DM Mono',monospace;
+}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--cr);font-family:var(--fd);display:flex;flex-direction:column}
+
+/* top bar */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:.6rem 1.75rem;border-bottom:1px solid var(--bor);flex-shrink:0}
+.tb-left{display:flex;align-items:center;gap:.85rem}
+.sess-name{font-family:var(--fm);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold)}
+.live-pill{display:inline-flex;align-items:center;gap:.3rem;font-family:var(--fm);font-size:9px;padding:.18rem .55rem;border-radius:99px;border:1px solid rgba(46,204,113,.3);background:rgba(46,204,113,.07);color:#2ecc71}
+.ldot{width:5px;height:5px;border-radius:50%;background:#2ecc71;animation:pulse 1.8s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.tb-right{display:flex;align-items:center;gap:1.25rem;font-family:var(--fm);font-size:10px;color:var(--mu)}
+.resp{color:var(--goldl)}
+.cdot{width:5px;height:5px;border-radius:50%;background:#e74c3c;display:inline-block}
+.cdot.on{background:#2ecc71;animation:pulse 2s infinite}
+
+/* mode indicator — shows whether q param is set */
+.mode-badge{font-family:var(--fm);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:.15rem .5rem;border-radius:4px;border:1px solid var(--bor);color:var(--mu)}
+.mode-badge.pinned{border-color:var(--borh);color:var(--goldl);background:var(--goldd)}
+
+/* main */
+.content{flex:1;display:flex;flex-direction:column;justify-content:center;padding:1.5rem 2.5rem;min-height:0;overflow:hidden}
+
+/* question header */
+.q-header{margin-bottom:1.5rem;flex-shrink:0}
+.q-label{font-family:var(--fm);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-bottom:.5rem}
+.q-text{font-size:clamp(1.5rem,3.2vw,2.6rem);font-weight:300;line-height:1.2}
+
+/* bars */
+.bars{display:flex;flex-direction:column;gap:.75rem;flex:1;justify-content:center;min-height:0}
+.bar-row{display:grid;grid-template-columns:1fr;gap:.3rem}
+.bar-meta{display:flex;align-items:baseline;justify-content:space-between;gap:1rem}
+.bar-label{font-size:clamp(1rem,2vw,1.45rem);font-weight:300;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
+.bar-label.win{color:var(--goldl)}
+.bar-stats{font-family:var(--fm);font-size:clamp(10px,1.1vw,12px);color:var(--gold);white-space:nowrap;flex-shrink:0}
+.bar-track{border-radius:4px;overflow:hidden;background:var(--sur2);position:relative}
+.bar-track.lg{height:clamp(14px,2.2vw,28px)}
+.bar-track.sm{height:clamp(10px,1.6vw,20px)}
+.bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--gold),var(--goldl));transition:width .9s cubic-bezier(.4,0,.2,1)}
+.bar-fill.win-fill{box-shadow:0 0 18px rgba(212,175,100,.22)}
+.win-badge{display:inline-flex;align-items:center;gap:.25rem;font-family:var(--fm);font-size:9px;text-transform:uppercase;background:var(--goldd);border:1px solid var(--borh);border-radius:3px;padding:.15rem .45rem;color:var(--goldl);margin-left:.55rem;vertical-align:middle;letter-spacing:.08em}
+
+/* nav bar — only shown in manual mode (no ?q param) */
+.nav-bar{display:flex;align-items:center;justify-content:center;gap:1.2rem;padding:.75rem 2rem 1rem;border-top:1px solid var(--bor);flex-shrink:0}
+.nav-btn{width:40px;height:40px;border-radius:50%;border:1px solid var(--bor);background:transparent;color:var(--cr);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;font-size:1rem}
+.nav-btn:hover:not(:disabled){border-color:var(--gold);background:var(--goldd)}
+.nav-btn:disabled{opacity:.22;cursor:default}
+.nav-dots{display:flex;gap:.45rem;align-items:center}
+.nav-dot{width:7px;height:7px;border-radius:50%;background:var(--sur2);border:1px solid var(--bor);cursor:pointer;transition:all .2s}
+.nav-dot.active{background:var(--gold);border-color:var(--gold)}
+
+/* text answers */
+.text-answers{display:flex;flex-direction:column;gap:.55rem;flex:1;justify-content:center;overflow-y:auto}
+.ta-chip{background:var(--sur2);border:1px solid var(--bor);border-radius:6px;padding:.55rem .9rem;font-size:1.05rem}
+.ta-chip .ta-n{font-family:var(--fm);font-size:10px;color:var(--gold);margin-left:.4rem}
+
+.no-data{text-align:center;color:var(--mu);font-family:var(--fm);font-size:12px;padding:3rem 0;letter-spacing:.08em}
+
+/* help text shown when no q param */
+.help-url{font-family:var(--fm);font-size:10px;color:var(--mu2);text-align:center;margin-top:.5rem}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="tb-left">
+    <span class="sess-name" id="sess-name">Loading...</span>
+    <span class="live-pill"><span class="ldot"></span>LIVE</span>
+    <span class="mode-badge" id="mode-badge">manual</span>
+  </div>
+  <div class="tb-right">
+    <span>Responses: <span class="resp" id="resp-count">0</span></span>
+    <span id="q-counter"></span>
+    <span style="display:inline-flex;align-items:center;gap:.35rem">
+      <span class="cdot" id="cdot"></span>
+      <span id="clbl">connecting</span>
+    </span>
+  </div>
+</div>
+
+<div class="content" id="content">
+  <div class="no-data">Connecting to Firebase...</div>
+</div>
+
+<!-- Nav bar only shown in manual mode -->
+<div class="nav-bar" id="nav-bar">
+  <button class="nav-btn" id="btn-prev" disabled>&#8592;</button>
+  <div class="nav-dots" id="nav-dots"></div>
+  <button class="nav-btn" id="btn-next" disabled>&#8594;</button>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+const cfg = {
+  apiKey: "AIzaSyCkVzgQItYG3IEJIvOh65bE5JVf2TPY6Xg",
+  authDomain: "wine-event-vote.firebaseapp.com",
+  databaseURL: "https://wine-event-vote-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "wine-event-vote",
+  storageBucket: "wine-event-vote.firebasestorage.app",
+  messagingSenderId: "241534493631",
+  appId: "1:241534493631:web:7eca293ea5dace42f1f70a"
+};
+
+const db = getDatabase(initializeApp(cfg));
+const params = new URLSearchParams(window.location.search);
+const sid = params.get('session');
+const qParam = params.get('q'); // if set, lock to this question index
+const pinnedQ = qParam !== null ? parseInt(qParam) : null;
+let curQ = pinnedQ !== null ? pinnedQ : 0;
+let session = { questions: [], votes: {}, name: '', responses: 0 };
+
+// ── Mode setup ──
+const isPinned = pinnedQ !== null;
+const modeBadge = document.getElementById('mode-badge');
+const navBar = document.getElementById('nav-bar');
+if (isPinned) {
+  modeBadge.textContent = 'slide pinned · Q' + (pinnedQ + 1);
+  modeBadge.classList.add('pinned');
+  navBar.style.display = 'none'; // hide nav in pinned mode
+} else {
+  modeBadge.textContent = 'manual nav';
+  navBar.style.display = 'flex';
+}
+
+// ── Firebase connection ──
+onValue(ref(db, '.info/connected'), s => {
+  const on = s.val();
+  document.getElementById('cdot').className = 'cdot' + (on ? ' on' : '');
+  document.getElementById('clbl').textContent = on ? 'live' : 'offline';
+});
+
+// ── Session listener ──
+if (!sid) {
+  document.getElementById('content').innerHTML =
+    '<div class="no-data">No session specified<br><span class="help-url">Add ?session=your-id to the URL</span></div>';
+  navBar.style.display = 'none';
+} else {
+  onValue(ref(db, 'sessions/' + sid), s => {
+    const d = s.val();
+    if (!d) { document.getElementById('content').innerHTML = '<div class="no-data">Session not found</div>'; return; }
+    session = {
+      questions: d.questions || [],
+      votes: d.votes || {},
+      name: d.name || sid,
+      responses: d.responses || 0
+    };
+    document.getElementById('sess-name').textContent = session.name;
+    document.getElementById('resp-count').textContent = session.responses;
+    // clamp curQ in case questions changed
+    if (isPinned) {
+      curQ = Math.min(pinnedQ, session.questions.length - 1);
+    } else {
+      curQ = Math.min(curQ, Math.max(session.questions.length - 1, 0));
+      updateNav();
+    }
+    renderQ(curQ);
+  });
+}
+
+// ── Navigation (manual mode only) ──
+function updateNav() {
+  const qs = session.questions;
+  document.getElementById('q-counter').textContent = qs.length ? 'Q' + (curQ+1) + ' / ' + qs.length : '';
+  const dots = document.getElementById('nav-dots');
+  dots.innerHTML = qs.map((_, i) =>
+    '<span class="nav-dot' + (i === curQ ? ' active' : '') + '" data-i="' + i + '"></span>'
+  ).join('');
+  dots.querySelectorAll('.nav-dot').forEach(d => {
+    d.addEventListener('click', () => goTo(parseInt(d.dataset.i)));
+  });
+  document.getElementById('btn-prev').disabled = curQ <= 0;
+  document.getElementById('btn-next').disabled = curQ >= qs.length - 1;
+}
+
+function goTo(i) { curQ = i; updateNav(); renderQ(curQ); }
+
+document.getElementById('btn-prev').addEventListener('click', () => { if (curQ > 0) goTo(curQ - 1); });
+document.getElementById('btn-next').addEventListener('click', () => { if (curQ < session.questions.length - 1) goTo(curQ + 1); });
+document.addEventListener('keydown', e => {
+  if (isPinned) return;
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { if (curQ < session.questions.length - 1) goTo(curQ + 1); }
+  if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   { if (curQ > 0) goTo(curQ - 1); }
+});
+
+// ── Render one question ──
+function renderQ(qi) {
+  const content = document.getElementById('content');
+  const qs = session.questions;
+  if (!qs.length) { content.innerHTML = '<div class="no-data">No questions configured yet</div>'; return; }
+  if (qi >= qs.length) { content.innerHTML = '<div class="no-data">Question ' + (qi+1) + ' not found</div>'; return; }
+
+  const q = qs[qi];
+  const qv = session.votes['q' + qi] || {};
+  const typeLabel = { single:'Single choice', multi:'Multiple choice', rating:'Rating', text:'Open text' }[q.type] || q.type;
+
+  // update q-counter for pinned mode too
+  document.getElementById('q-counter').textContent = 'Q' + (qi+1) + ' / ' + qs.length;
+
+  let bodyHtml = '';
+
+  if (q.type === 'single' || q.type === 'multi') {
+    const opts = q.options || [];
+    const counts = opts.map(o => qv[encodeURIComponent(o)] || 0);
+    const totalVotes = counts.reduce((a, b) => a + b, 0);
+    const maxCount = Math.max(...counts, 1);
+    const pairs = opts.map((o, i) => ({ o, c: counts[i] })).sort((a, b) => b.c - a.c);
+
+    bodyHtml = '<div class="bars">' + pairs.map((item, rank) => {
+      const pct = totalVotes > 0 ? Math.round((item.c / totalVotes) * 100) : 0;
+      const barW = Math.round((item.c / maxCount) * 100);
+      const isWin = rank === 0 && item.c > 0;
+      const trackCls = rank === 0 ? 'lg' : 'sm';
+      return '<div class="bar-row">' +
+        '<div class="bar-meta">' +
+        '<span class="bar-label' + (isWin ? ' win' : '') + '">' + item.o +
+        (isWin ? '<span class="win-badge">leading</span>' : '') + '</span>' +
+        '<span class="bar-stats">' + item.c + ' vote' + (item.c !== 1 ? 's' : '') + ' &nbsp;&middot;&nbsp; ' + pct + '%</span>' +
+        '</div>' +
+        '<div class="bar-track ' + trackCls + '"><div class="bar-fill' + (isWin ? ' win-fill' : '') + '" style="width:' + barW + '%"></div></div>' +
+        '</div>';
+    }).join('') + '</div>';
+
+  } else if (q.type === 'rating') {
+    const entries = Object.entries(qv);
+    const totalVotes = entries.reduce((a, [, v]) => a + v, 0);
+    const starMap = {};
+    entries.forEach(([k, v]) => { starMap[decodeURIComponent(k)] = v; });
+    const maxV = Math.max(...[1,2,3,4,5].map(n => starMap[n + (n===1?' star':' stars')] || 0), 1);
+    bodyHtml = '<div class="bars">' + [5,4,3,2,1].map(n => {
+      const label = n + (n === 1 ? ' star' : ' stars');
+      const count = starMap[label] || 0;
+      const barW = Math.round((count / maxV) * 100);
+      const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+      return '<div class="bar-row">' +
+        '<div class="bar-meta">' +
+        '<span class="bar-label" style="display:flex;align-items:center;gap:.5rem">' +
+        '<span style="color:var(--gold)">' + '&#9733;'.repeat(n) + '&#9734;'.repeat(5-n) + '</span>' +
+        '<span style="font-size:.9rem;color:var(--mu)">' + label + '</span></span>' +
+        '<span class="bar-stats">' + count + 'x &nbsp;&middot;&nbsp; ' + pct + '%</span>' +
+        '</div>' +
+        '<div class="bar-track sm"><div class="bar-fill" style="width:' + barW + '%"></div></div>' +
+        '</div>';
+    }).join('') + '</div>';
+
+  } else {
+    const entries = Object.entries(qv).sort((a, b) => b[1] - a[1]);
+    bodyHtml = entries.length
+      ? '<div class="text-answers">' + entries.map(([k, v]) =>
+          '<div class="ta-chip">' + decodeURIComponent(k) + (v > 1 ? '<span class="ta-n">' + v + 'x</span>' : '') + '</div>'
+        ).join('') + '</div>'
+      : '<div class="no-data">No text responses yet</div>';
+  }
+
+  content.innerHTML =
+    '<div class="q-header">' +
+    '<div class="q-label">Question ' + (qi+1) + ' of ' + qs.length + ' &nbsp;&middot;&nbsp; <span style="color:var(--mu)">' + typeLabel + '</span></div>' +
+    '<div class="q-text">' + q.text + '</div>' +
+    '</div>' + bodyHtml;
+}
+</script>
+</body>
+</html>
