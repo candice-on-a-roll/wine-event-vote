@@ -56,6 +56,8 @@ h1 em{font-style:italic;color:var(--goldl)}
 .btn-next{flex:1;padding:.85rem;font-family:var(--fd);font-style:italic;font-size:1.15rem;font-weight:300;letter-spacing:.05em;background:var(--gold);color:#1a1400;border:none;border-radius:8px;cursor:pointer;transition:background .2s}
 .btn-next:hover{background:var(--goldl)}
 .btn-next:disabled{opacity:.28;cursor:default}
+.btn-skip{font-family:var(--fm);font-size:10px;letter-spacing:.1em;text-transform:uppercase;background:transparent;border:none;color:var(--mu);padding:.5rem .75rem;cursor:pointer;transition:color .2s;text-align:center;width:100%;margin-top:.5rem}
+.btn-skip:hover{color:var(--cr)}
 .screen{text-align:center;padding:4rem 1rem 2rem}
 .big-icon{font-size:3.5rem;margin-bottom:1.4rem;animation:pop .45s cubic-bezier(.4,0,.2,1)}
 @keyframes pop{0%{transform:scale(.4);opacity:0}80%{transform:scale(1.12)}100%{transform:scale(1);opacity:1}}
@@ -208,16 +210,24 @@ function renderQuestion() {
     (curQ > 0 ? '<button class="btn-back" id="btn-back">&#8592; Back</button>' : '') +
     '<button class="btn-next" id="btn-next"' + (canGo ? '' : ' disabled') + '>' +
     (isLast ? 'Submit My Vote' : 'Next &#8594;') + '</button>' +
-    '</div></div>';
+    '</div>' +
+    (!isLast ? '<button class="btn-skip" id="btn-skip">Skip this question &#8594;</button>' : '') +
+    '</div>';
 
   // ── Attach all listeners via JS (no inline onclick) ──
   const btnNext = document.getElementById('btn-next');
   const btnBack = document.getElementById('btn-back');
+  const btnSkip = document.getElementById('btn-skip');
 
   if (btnBack) btnBack.addEventListener('click', () => { curQ--; renderQuestion(); });
   if (btnNext) btnNext.addEventListener('click', () => {
     if (curQ < qs.length - 1) { curQ++; renderQuestion(); }
     else submitAll();
+  });
+  if (btnSkip) btnSkip.addEventListener('click', () => {
+    delete answers[curQ]; // leave no answer for this question
+    curQ++;
+    renderQuestion();
   });
 
   // Single / multi choice
