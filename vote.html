@@ -76,6 +76,21 @@ h1 em{font-style:italic;color:var(--goldl)}
 .err-screen{text-align:center;padding:4rem 1rem}
 .err-screen h2{font-size:1.6rem;font-weight:300;color:var(--mu);margin-bottom:.6rem}
 .err-screen p{font-family:var(--fm);font-size:11px;color:var(--mu)}
+.reveal-wrap{animation:fadeIn .35s ease}
+.reveal-eye{font-family:var(--fm);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);margin-bottom:.5rem}
+.reveal-q{font-size:1.4rem;font-weight:300;line-height:1.25;margin-bottom:1.5rem}
+.reveal-your{font-family:var(--fm);font-size:10px;color:var(--mu);margin-bottom:1.1rem;letter-spacing:.06em}
+.reveal-bars{display:flex;flex-direction:column;gap:.75rem;margin-bottom:1.75rem}
+.rv-row{display:grid;grid-template-columns:1fr;gap:.3rem}
+.rv-meta{display:flex;justify-content:space-between;align-items:baseline;gap:.5rem}
+.rv-label{font-size:1rem;font-weight:300;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rv-label.mine{color:var(--goldl)}
+.rv-stat{font-family:var(--fm);font-size:11px;color:var(--gold);white-space:nowrap;flex-shrink:0}
+.rv-track{height:10px;background:var(--sur2);border-radius:5px;overflow:hidden}
+.rv-fill{height:100%;border-radius:5px;background:linear-gradient(90deg,var(--gold),var(--goldl));transition:width .8s cubic-bezier(.4,0,.2,1)}
+.rv-fill.wf{box-shadow:0 0 12px rgba(212,175,100,.3)}
+.btn-rnext{width:100%;padding:.9rem;font-family:var(--fd);font-style:italic;font-size:1.15rem;font-weight:300;letter-spacing:.05em;background:var(--gold);color:#1a1400;border:none;border-radius:8px;cursor:pointer;transition:background .2s}
+.btn-rnext:hover{background:var(--goldl)}
 </style>
 </head>
 <body>
@@ -220,12 +235,14 @@ function renderQuestion() {
   const btnSkip = document.getElementById('btn-skip');
 
   if (btnBack) btnBack.addEventListener('click', () => { curQ--; renderQuestion(); });
-  if (btnNext) btnNext.addEventListener('click', () => {
-    if (curQ < qs.length - 1) { curQ++; renderQuestion(); }
-    else submitAll();
+  if (btnNext) btnNext.addEventListener('click', async () => {
+    await submitCurrentQ(curQ);
+    showReveal(curQ);
   });
-  if (btnSkip) btnSkip.addEventListener('click', () => {
-    delete answers[curQ]; // leave no answer for this question
+  if (btnSkip) btnSkip.addEventListener('click', async () => {
+    delete answers[curQ];
+    const wasLast = curQ === session.questions.length - 1;
+    if (wasLast) { finishAll(); return; }
     curQ++;
     renderQuestion();
   });
@@ -290,43 +307,96 @@ function canProceed(q) {
   return false;
 }
 
-// ── Submit all answers ──
-async function submitAll() {
-  if (hasVoted) return;
-  hasVoted = true;
-  const qs = session.questions;
+// ── Submit single question to Firebase ──
+const submittedQs = new Set();
+async function submitCurrentQ(qi) {
+  if (submittedQs.has(qi)) return;
+  const q = session.questions[qi];
+  const ans = answers[qi];
+  if (ans === undefined || ans === null || ans === '' || (Array.isArray(ans) && !ans.length)) return;
+  submittedQs.add(qi);
   const promises = [];
-
-  qs.forEach((q, qi) => {
-    const ans = answers[qi];
-    if (ans === undefined || ans === null || ans === '' || (Array.isArray(ans) && !ans.length)) return;
-    if (q.type === 'single') {
-      promises.push(runTransaction(ref(db, 'sessions/' + sid + '/votes/q' + qi + '/' + encodeURIComponent(ans)), c => (c || 0) + 1));
-    } else if (q.type === 'multi') {
-      ans.forEach(o => promises.push(runTransaction(ref(db, 'sessions/' + sid + '/votes/q' + qi + '/' + encodeURIComponent(o)), c => (c || 0) + 1)));
-    } else if (q.type === 'rating') {
-      const key = encodeURIComponent(ans + (ans === 1 ? ' star' : ' stars'));
-      promises.push(runTransaction(ref(db, 'sessions/' + sid + '/votes/q' + qi + '/' + key), c => (c || 0) + 1));
-    } else if (q.type === 'text') {
-      const val = String(ans).trim();
-      if (val) promises.push(runTransaction(ref(db, 'sessions/' + sid + '/votes/q' + qi + '/' + encodeURIComponent(val)), c => (c || 0) + 1));
-    }
-  });
-  promises.push(runTransaction(ref(db, 'sessions/' + sid + '/responses'), c => (c || 0) + 1));
-
+  if (q.type === 'single') {
+    promises.push(runTransaction(ref(db, 'sessions/'+sid+'/votes/q'+qi+'/'+encodeURIComponent(ans)), c=>(c||0)+1));
+  } else if (q.type === 'multi') {
+    ans.forEach(o => promises.push(runTransaction(ref(db, 'sessions/'+sid+'/votes/q'+qi+'/'+encodeURIComponent(o)), c=>(c||0)+1)));
+  } else if (q.type === 'rating') {
+    promises.push(runTransaction(ref(db, 'sessions/'+sid+'/votes/q'+qi+'/'+encodeURIComponent(ans+(ans===1?' star':' stars'))), c=>(c||0)+1));
+  } else if (q.type === 'text') {
+    const val = String(ans).trim();
+    if (val) promises.push(runTransaction(ref(db, 'sessions/'+sid+'/votes/q'+qi+'/'+encodeURIComponent(val)), c=>(c||0)+1));
+  }
   await Promise.all(promises);
+  // optimistic local update
+  if (!session.votes['q'+qi]) session.votes['q'+qi] = {};
+  if (q.type === 'single') { const k=encodeURIComponent(ans); session.votes['q'+qi][k]=(session.votes['q'+qi][k]||0)+1; }
+  else if (q.type === 'multi') { ans.forEach(o=>{ const k=encodeURIComponent(o); session.votes['q'+qi][k]=(session.votes['q'+qi][k]||0)+1; }); }
+  else if (q.type === 'rating') { const k=encodeURIComponent(ans+(ans===1?' star':' stars')); session.votes['q'+qi][k]=(session.votes['q'+qi][k]||0)+1; }
+  else if (q.type === 'text') { const k=encodeURIComponent(String(ans).trim()); if(k) session.votes['q'+qi][k]=(session.votes['q'+qi][k]||0)+1; }
+}
 
-  // Optimistic local update
-  qs.forEach((q, qi) => {
-    const ans = answers[qi];
-    if (!session.votes['q' + qi]) session.votes['q' + qi] = {};
-    if (q.type === 'single' && ans) { const k = encodeURIComponent(ans); session.votes['q'+qi][k] = (session.votes['q'+qi][k]||0)+1; }
-    else if (q.type === 'multi' && ans) { ans.forEach(o => { const k=encodeURIComponent(o); session.votes['q'+qi][k]=(session.votes['q'+qi][k]||0)+1; }); }
-    else if (q.type === 'rating' && ans) { const k=encodeURIComponent(ans+(ans===1?' star':' stars')); session.votes['q'+qi][k]=(session.votes['q'+qi][k]||0)+1; }
-    else if (q.type === 'text' && ans) { const k=encodeURIComponent(String(ans).trim()); if(k) session.votes['q'+qi][k]=(session.votes['q'+qi][k]||0)+1; }
+// ── Show per-question result reveal ──
+function showReveal(qi) {
+  const q = session.questions[qi];
+  const qv = session.votes['q'+qi] || {};
+  const myAns = answers[qi];
+  const myArr = Array.isArray(myAns) ? myAns : (myAns ? [myAns] : []);
+  const isLast = qi === session.questions.length - 1;
+  const qa = document.getElementById('qarea');
+
+  let barsHtml = '';
+  if (q.type === 'single' || q.type === 'multi') {
+    const opts = q.options || [];
+    const counts = opts.map(o => qv[encodeURIComponent(o)] || 0);
+    const total = counts.reduce((a,b)=>a+b, 0);
+    const maxC = Math.max(...counts, 1);
+    const sorted = opts.map((o,i)=>({o, c:counts[i]})).sort((a,b)=>b.c-a.c);
+    barsHtml = '<div class="reveal-bars">' + sorted.map((item, rank) => {
+      const pct = total > 0 ? Math.round((item.c/total)*100) : 0;
+      const barW = Math.round((item.c/maxC)*100);
+      const mine = myArr.includes(item.o);
+      const isWin = rank === 0 && item.c > 0;
+      return '<div class="rv-row">' +
+        '<div class="rv-meta">' +
+        '<span class="rv-label' + (mine?' mine':'') + '">' + item.o + (mine?' ✓':'') + '</span>' +
+        '<span class="rv-stat">' + item.c + ' &middot; ' + pct + '%</span></div>' +
+        '<div class="rv-track"><div class="rv-fill' + (isWin?' wf':'') + '" style="width:'+barW+'%"></div></div>' +
+        '</div>';
+    }).join('') + '</div>';
+  } else if (q.type === 'rating') {
+    const entries = Object.entries(qv).sort((a,b)=>b[1]-a[1]);
+    const maxV = Math.max(...entries.map(e=>e[1]),1);
+    barsHtml = '<div class="reveal-bars">' + entries.map(([k,v])=>{
+      return '<div class="rv-row"><div class="rv-meta"><span class="rv-label">'+decodeURIComponent(k)+'</span><span class="rv-stat">'+v+'x</span></div>' +
+        '<div class="rv-track"><div class="rv-fill" style="width:'+Math.round((v/maxV)*100)+'%"></div></div></div>';
+    }).join('') + '</div>';
+  } else {
+    barsHtml = myAns ? '<div style="background:var(--sur2);border-radius:8px;padding:.75rem 1rem;font-size:1rem;margin-bottom:1.5rem">Your answer: "'+myAns+'"</div>' : '';
+  }
+
+  const yourLbl = myAns
+    ? '<div class="reveal-your">Your answer: ' + (Array.isArray(myAns) ? myAns.join(', ') : myAns) + '</div>'
+    : '<div class="reveal-your" style="color:var(--mu)">Skipped</div>';
+
+  qa.innerHTML = '<div class="reveal-wrap">' +
+    '<div class="reveal-eye">Question ' + (qi+1) + ' results</div>' +
+    '<div class="reveal-q">' + q.text + '</div>' +
+    yourLbl + barsHtml +
+    '<button class="btn-rnext" id="btn-rnext">' +
+    (isLast ? 'Done &#10003;' : 'Next Question &#8594;') + '</button>' +
+    '</div>';
+
+  document.getElementById('btn-rnext').addEventListener('click', () => {
+    if (isLast) { finishAll(); }
+    else { curQ++; renderQuestion(); }
   });
-  session.responses = (session.responses || 0) + 1;
+}
 
+// ── Final thank you screen ──
+async function finishAll() {
+  // increment responses counter once at the very end
+  await runTransaction(ref(db, 'sessions/'+sid+'/responses'), c=>(c||0)+1);
+  session.responses = (session.responses||0)+1;
   document.getElementById('spill').className = 'pill pill-open';
   document.getElementById('spill').innerHTML = '<span class="dot dot-on"></span>Vote submitted';
   showScreen('voted-screen');
