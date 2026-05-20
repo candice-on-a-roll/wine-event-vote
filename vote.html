@@ -327,18 +327,19 @@ async function submitCurrentQ(qi) {
     if (val) promises.push(runTransaction(ref(db, 'sessions/'+sid+'/votes/q'+qi+'/'+encodeURIComponent(val)), c=>(c||0)+1));
   }
   await Promise.all(promises);
-  // optimistic local update
-  if (!session.votes['q'+qi]) session.votes['q'+qi] = {};
-  if (q.type === 'single') { const k=encodeURIComponent(ans); session.votes['q'+qi][k]=(session.votes['q'+qi][k]||0)+1; }
-  else if (q.type === 'multi') { ans.forEach(o=>{ const k=encodeURIComponent(o); session.votes['q'+qi][k]=(session.votes['q'+qi][k]||0)+1; }); }
-  else if (q.type === 'rating') { const k=encodeURIComponent(ans+(ans===1?' star':' stars')); session.votes['q'+qi][k]=(session.votes['q'+qi][k]||0)+1; }
-  else if (q.type === 'text') { const k=encodeURIComponent(String(ans).trim()); if(k) session.votes['q'+qi][k]=(session.votes['q'+qi][k]||0)+1; }
+  // No optimistic update — let Firebase onValue push the real counts back
 }
 
 // ── Show per-question result reveal ──
-function showReveal(qi) {
+async function showReveal(qi) {
+  // fetch fresh vote counts directly from Firebase — avoids race condition with local state
+  const { get: fbGet } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
+  const snap = await fbGet(ref(db, 'sessions/'+sid+'/votes/q'+qi));
+  const qv = snap.val() || {};
+  // also update local session so results page stays in sync
+  session.votes['q'+qi] = qv;
+
   const q = session.questions[qi];
-  const qv = session.votes['q'+qi] || {};
   const myAns = answers[qi];
   const myArr = Array.isArray(myAns) ? myAns : (myAns ? [myAns] : []);
   const isLast = qi === session.questions.length - 1;
@@ -396,7 +397,14 @@ function showReveal(qi) {
 async function finishAll() {
   // increment responses counter once at the very end
   await runTransaction(ref(db, 'sessions/'+sid+'/responses'), c=>(c||0)+1);
-  session.responses = (session.responses||0)+1;
+  // fetch final fresh state from Firebase before rendering summary
+  const { get: fbGet } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
+  const snap = await fbGet(ref(db, 'sessions/'+sid));
+  const d = snap.val();
+  if (d) {
+    session.votes = d.votes || {};
+    session.responses = d.responses || 0;
+  }
   document.getElementById('spill').className = 'pill pill-open';
   document.getElementById('spill').innerHTML = '<span class="dot dot-on"></span>Vote submitted';
   showScreen('voted-screen');
