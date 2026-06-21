@@ -237,7 +237,10 @@ function renderQuestion() {
   if (btnBack) btnBack.addEventListener('click', () => { curQ--; renderQuestion(); });
   if (btnNext) btnNext.addEventListener('click', async () => {
     await submitCurrentQ(curQ);
-    showReveal(curQ);
+    const wasLast = curQ === qs.length - 1;
+    if (wasLast) { finishAll(); return; }
+    curQ++;
+    renderQuestion();
   });
   if (btnSkip) btnSkip.addEventListener('click', async () => {
     delete answers[curQ];
