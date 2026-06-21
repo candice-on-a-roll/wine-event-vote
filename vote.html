@@ -453,6 +453,53 @@ for (let i = 0; i < 14; i++) {
 }
 
 init();
+
+// ── Wake-from-sleep recovery ──
+// When a phone screen sleeps, the browser suspends JS timers and the
+// Firebase realtime connection often goes stale. When the page becomes
+// visible again, force a fresh read so the UI is never stuck on old state.
+let lastVisRefresh = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+  const now = Date.now();
+  if (now - lastVisRefresh < 1000) return; // debounce rapid fires
+  lastVisRefresh = now;
+  refreshFromFirebase();
+});
+// Some mobile browsers fire 'focus' instead of (or in addition to) visibilitychange
+window.addEventListener('focus', () => {
+  const now = Date.now();
+  if (now - lastVisRefresh < 1000) return;
+  lastVisRefresh = now;
+  refreshFromFirebase();
+});
+// Also catch the network coming back after the phone reconnects to wifi/data
+window.addEventListener('online', refreshFromFirebase);
+
+async function refreshFromFirebase() {
+  if (!sid) return;
+  try {
+    const { get: fbGet } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
+    const snap = await fbGet(ref(db, 'sessions/' + sid));
+    const d = snap.val();
+    if (!d) return;
+    session = {
+      questions: d.questions || [],
+      votes: d.votes || {},
+      name: d.name || sid,
+      votingOpen: d.votingOpen || false,
+      responses: d.responses || 0
+    };
+    // If the host opened/closed voting or changed state while asleep, reflect it now
+    if (!hasVoted) {
+      renderState();
+    } else {
+      renderPostResults();
+    }
+  } catch (e) {
+    // Network might still be reconnecting — onValue listener will catch up shortly
+  }
+}
 </script>
 </body>
 </html>
